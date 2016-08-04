@@ -326,9 +326,9 @@ class TrezorCompatiblePlugin(HW_PluginBase):
                 txoutputtype.address = address
             txoutputtype.amount = amount
             addrtype, hash_160 = bc_address_to_hash_160(address)
-            if addrtype == 0:
+            if addrtype == 95:
                 txoutputtype.script_type = self.types.PAYTOADDRESS
-            elif addrtype == 5:
+            elif addrtype == 36:
                 txoutputtype.script_type = self.types.PAYTOSCRIPTHASH
             else:
                 raise BaseException('addrtype')
