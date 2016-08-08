@@ -28,12 +28,12 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
         else:
             usr_share = os.path.expanduser('~/.local/share')
     data_files += [
-        (os.path.join(usr_share, 'applications/'), ['electrum.desktop']),
-        (os.path.join(usr_share, 'pixmaps/'), ['icons/electrum.png'])
+        (os.path.join(usr_share, 'applications/'), ['electrumfair.desktop']),
+        (os.path.join(usr_share, 'pixmaps/'), ['icons/electrumfair.png'])
     ]
 
 setup(
-    name="Electrum",
+    name="ElectrumFair",
     version=version.ELECTRUM_VERSION,
     install_requires=[
         'slowaes>=0.1a1',

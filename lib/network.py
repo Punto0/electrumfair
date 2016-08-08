@@ -44,24 +44,12 @@ from version import ELECTRUM_VERSION, PROTOCOL_VERSION
 
 FEE_TARGETS = [25, 10, 5, 2]
 
-DEFAULT_PORTS = {'t':'50001', 's':'50002', 'h':'8081', 'g':'8082'}
+DEFAULT_PORTS = {'t':'51801', 's':'51802', 'h':'8181', 'g':'8182'}
 
 DEFAULT_SERVERS = {
-    'erbium1.sytes.net':{'t':'50001', 's':'50002'},
-    'ecdsa.net':{'t':'50001', 's':'110'},
-    'electrum0.electricnewyear.net':{'t':'50001', 's':'50002'},
-    'VPS.hsmiths.com':{'t':'50001', 's':'50002'},
-    'ELECTRUM.jdubya.info':{'t':'50001', 's':'50002'},
-    'electrum.no-ip.org':{'t':'50001', 's':'50002', 'g':'443'},
-    'us.electrum.be':DEFAULT_PORTS,
-    'bitcoins.sk':{'t':'50001', 's':'50002'},
-    'electrum.petrkr.net':{'t':'50001', 's':'50002'},
-    'electrum.dragonzone.net':DEFAULT_PORTS,
-    'Electrum.hsmiths.com':{'t':'8080', 's':'995'},
-    'electrum3.hachre.de':{'t':'50001', 's':'50002'},
-    'elec.luggs.co':{'t':'80', 's':'443'},
-    'btc.smsys.me':{'t':'110', 's':'995'},
-    'electrum.online':{'t':'50001', 's':'50002'},
+    '172.17.0.23':{'t':'51801', 's':'51802'},
+#    'chain.fair-coin.org':{'s':'51802'},
+#    'fairlectrum.fair-coin.org':{'s':'51802'},
 }
 
 NODES_RETRY_INTERVAL = 60
@@ -192,7 +180,7 @@ class Network(util.DaemonThread):
 
         self.banner = ''
         self.donation_address = ''
-        self.fee_estimates = {}
+        self.transaction_fee = 0.1 * COIN
         self.relay_fee = None
         self.heights = {}
         self.merkle_roots = {}
@@ -316,8 +304,7 @@ class Network(util.DaemonThread):
         self.queue_request('server.banner', [])
         self.queue_request('server.donation_address', [])
         self.queue_request('server.peers.subscribe', [])
-        for i in FEE_TARGETS:
-            self.queue_request('blockchain.estimatefee', [i])
+        self.queue_request('blockchain.getchainparameters', [])
         self.queue_request('blockchain.relayfee', [])
 
     def get_status_value(self, key):
@@ -326,7 +313,7 @@ class Network(util.DaemonThread):
         elif key == 'banner':
             value = self.banner
         elif key == 'fee':
-            value = self.fee_estimates
+            value = self.transaction_fee
         elif key == 'updated':
             value = (self.get_local_height(), self.get_server_height())
         elif key == 'servers':
@@ -336,24 +323,24 @@ class Network(util.DaemonThread):
         return value
 
     def dynfee(self, i):
-        from bitcoin import RECOMMENDED_FEE
-        if i < 4:
-            j = FEE_TARGETS[i]
-            fee = self.fee_estimates.get(j)
-        else:
-            assert i == 4
-            fee = self.fee_estimates.get(2)
-            if fee is not None:
-                fee += fee/2
-        if fee is not None:
-            fee = min(10*RECOMMENDED_FEE, fee)
-        return fee
+#         from bitcoin import RECOMMENDED_FEE
+#         if i < 4:
+#             j = FEE_TARGETS[i]
+#             fee = self.fee_estimates.get(j)
+#         else:
+#             assert i == 4
+#             fee = self.fee_estimates.get(2)
+#             if fee is not None:
+#                 fee += fee/2
+#         if fee is not None:
+#             fee = min(10*RECOMMENDED_FEE, fee)
+        return self.transaction_fee
 
     def reverse_dynfee(self, fee_per_kb):
         import operator
         dist = map(lambda x: (x[0], abs(x[1] - fee_per_kb)), self.fee_estimates.items())
         min_target, min_value = min(dist, key=operator.itemgetter(1))
-        if fee_per_kb < self.fee_estimates.get(25)/2:
+        if fee_per_kb < self.transaction_fee/2:
             min_target = -1
         return min_target
 
@@ -537,10 +524,10 @@ class Network(util.DaemonThread):
         elif method == 'server.donation_address':
             if error is None:
                 self.donation_address = result
-        elif method == 'blockchain.estimatefee':
+        elif method == 'blockchain.getchainparameters':
             if error is None:
-                i = params[0]
-                self.fee_estimates[i] = int(result * COIN)
+                self.transaction_fee = int(result.get('transactionFee'))
+                print "Transaction fee:", self.transaction_fee
                 self.notify('fee')
         elif method == 'blockchain.relayfee':
             if error is None:

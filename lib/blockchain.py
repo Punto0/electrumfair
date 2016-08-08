@@ -30,13 +30,15 @@ import util
 from bitcoin import *
 
 MAX_TARGET = 0x00000000FFFF0000000000000000000000000000000000000000000000000000
+HEADER_SIZE = 108
+CHUNK_SIZE  = 2000
 
 class Blockchain(util.PrintError):
     '''Manages blockchain headers and their verification'''
     def __init__(self, config, network):
         self.config = config
         self.network = network
-        self.headers_url = "https://headers.electrum.org/blockchain_headers"
+        self.headers_url = "https://chain.fair-coin.org/download/electrum_headers"
         self.local_height = 0
         self.set_local_height()
 
@@ -48,32 +50,26 @@ class Blockchain(util.PrintError):
         self.set_local_height()
         self.print_error("%d blocks" % self.local_height)
 
-    def verify_header(self, header, prev_header, bits, target):
+    def verify_header(self, header, prev_header):
         prev_hash = self.hash_header(prev_header)
         assert prev_hash == header.get('prev_block_hash'), "prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash'))
-        assert bits == header.get('bits'), "bits mismatch: %s vs %s" % (bits, header.get('bits'))
-        _hash = self.hash_header(header)
-        assert int('0x' + _hash, 16) <= target, "insufficient proof of work: %s vs target %s" % (int('0x' + _hash, 16), target)
 
     def verify_chain(self, chain):
         first_header = chain[0]
         prev_header = self.read_header(first_header.get('block_height') - 1)
         for header in chain:
-            height = header.get('block_height')
-            bits, target = self.get_target(height / 2016, chain)
-            self.verify_header(header, prev_header, bits, target)
+            self.verify_header(header, prev_header)
             prev_header = header
 
     def verify_chunk(self, index, data):
-        num = len(data) / 80
+        num = len(data) / HEADER_SIZE
         prev_header = None
         if index != 0:
-            prev_header = self.read_header(index*2016 - 1)
-        bits, target = self.get_target(index)
+            prev_header = self.read_header(index*CHUNK_SIZE - 1)
         for i in range(num):
-            raw_header = data[i*80:(i+1) * 80]
+            raw_header = data[i*HEADER_SIZE:(i+1) * HEADER_SIZE]
             header = self.deserialize_header(raw_header)
-            self.verify_header(header, prev_header, bits, target)
+            self.verify_header(header, prev_header)
             prev_header = header
 
     def serialize_header(self, res):
@@ -81,8 +77,8 @@ class Blockchain(util.PrintError):
             + rev_hex(res.get('prev_block_hash')) \
             + rev_hex(res.get('merkle_root')) \
             + int_to_hex(int(res.get('timestamp')), 4) \
-            + int_to_hex(int(res.get('bits')), 4) \
-            + int_to_hex(int(res.get('nonce')), 4)
+            + rev_hex(res.get('block_hash')) \
+            + rev_hex(res.get('creator'))
         return s
 
     def deserialize_header(self, s):
@@ -92,14 +88,14 @@ class Blockchain(util.PrintError):
         h['prev_block_hash'] = hash_encode(s[4:36])
         h['merkle_root'] = hash_encode(s[36:68])
         h['timestamp'] = hex_to_int(s[68:72])
-        h['bits'] = hex_to_int(s[72:76])
-        h['nonce'] = hex_to_int(s[76:80])
+        h['block_hash'] = hash_encode(s[72:104])
+        h['creator'] = hash_encode(s[104:108])
         return h
 
     def hash_header(self, header):
         if header is None:
             return '0' * 64
-        return hash_encode(Hash(self.serialize_header(header).decode('hex')))
+        return header.get('block_hash')
 
     def path(self):
         return util.get_headers_path(self.config)
@@ -121,18 +117,18 @@ class Blockchain(util.PrintError):
     def save_chunk(self, index, chunk):
         filename = self.path()
         f = open(filename, 'rb+')
-        f.seek(index * 2016 * 80)
+        f.seek(index * CHUNK_SIZE * HEADER_SIZE)
         h = f.write(chunk)
         f.close()
         self.set_local_height()
 
     def save_header(self, header):
         data = self.serialize_header(header).decode('hex')
-        assert len(data) == 80
+        assert len(data) == HEADER_SIZE
         height = header.get('block_height')
         filename = self.path()
         f = open(filename, 'rb+')
-        f.seek(height * 80)
+        f.seek(height * HEADER_SIZE)
         h = f.write(data)
         f.close()
         self.set_local_height()
@@ -140,7 +136,7 @@ class Blockchain(util.PrintError):
     def set_local_height(self):
         name = self.path()
         if os.path.exists(name):
-            h = os.path.getsize(name)/80 - 1
+            h = os.path.getsize(name)/HEADER_SIZE - 1
             if self.local_height != h:
                 self.local_height = h
 
@@ -148,21 +144,21 @@ class Blockchain(util.PrintError):
         name = self.path()
         if os.path.exists(name):
             f = open(name, 'rb')
-            f.seek(block_height * 80)
-            h = f.read(80)
+            f.seek(block_height * HEADER_SIZE)
+            h = f.read(HEADER_SIZE)
             f.close()
-            if len(h) == 80:
+            if len(h) == HEADER_SIZE:
                 h = self.deserialize_header(h)
                 return h
 
     def get_target(self, index, chain=None):
         if index == 0:
             return 0x1d00ffff, MAX_TARGET
-        first = self.read_header((index-1) * 2016)
-        last = self.read_header(index*2016 - 1)
+        first = self.read_header((index-1) * CHUNK_SIZE)
+        last = self.read_header(index*CHUNK_SIZE - 1)
         if last is None:
             for h in chain:
-                if h.get('block_height') == index*2016 - 1:
+                if h.get('block_height') == index*CHUNK_SIZE - 1:
                     last = h
         assert last is not None
         # bits to target
