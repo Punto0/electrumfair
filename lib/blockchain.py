@@ -30,8 +30,8 @@ import util
 from bitcoin import *
 
 MAX_TARGET = 0x00000000FFFF0000000000000000000000000000000000000000000000000000
-HEADER_SIZE = 173
-CHUNK_SIZE  = 2000
+HEADER_SIZE = 104
+CHUNK_SIZE  = 1500
 
 class Blockchain(util.PrintError):
     '''Manages blockchain headers and their verification'''
@@ -77,9 +77,7 @@ class Blockchain(util.PrintError):
             + rev_hex(res.get('prev_block_hash')) \
             + rev_hex(res.get('merkle_root')) \
             + int_to_hex(int(res.get('timestamp')), 4) \
-            + rev_hex(res.get('block_hash')) \
-            + rev_hex(res.get('creator')) \
-            + sig_decode(res.get('creatorSignature'))
+            + rev_hex(res.get('block_hash'))
         return s
 
     def deserialize_header(self, s):
@@ -90,8 +88,6 @@ class Blockchain(util.PrintError):
         h['merkle_root'] = hash_encode(s[36:68])
         h['timestamp'] = hex_to_int(s[68:72])
         h['block_hash'] = hash_encode(s[72:104])
-        h['creator'] = hash_encode(s[104:108]),
-        h['creatorSignature'] = sig_encode(s[108:]),
         return h
 
     def hash_header(self, header):
@@ -228,76 +224,3 @@ class Blockchain(util.PrintError):
             self.print_error('verify_chunk failed', str(e))
             return idx - 1
 
-class SignatureError(Exception):
-    """Thrown if something goes wrong during signature processing."""
-
-def sig_decode(inStr):
-    """converts a DER encoded ECDSA signature into a stable length representation of 65 bytes"""
-
-    b = inStr.decode('hex')
-
-    #some pre-flight checks
-    if ord(b[0]) != 0x30:
-        raise SignatureError("DER signautres must start with 0x30")
-
-    if ord(b[1]) < 0x42 or ord(b[1]) > 0x46:
-        raise SignatureError("wrong length in DER signautre:", b[1].encode('hex'))
-
-    # extract R
-    R_len = ord(b[3])
-    offset = 4
-
-    if b[offset] == b'\x00':
-        R_len -= 1
-        offset += 1
-
-    R = b[offset:R_len + offset].encode('hex')
-
-    # extract S
-    offset += R_len + 1 # skip 02 DER integer code
-    S_len = ord(b[offset])
-
-    offset += 1
-    if b[offset] == b'\x00':
-        S_len -= 1
-        offset += 1
-
-    S = b[offset:S_len + offset].encode('hex')
-
-    # we encode r and s into meta_length byte for later recovery
-    R_padding = 32 - R_len
-    S_padding = 32 - S_len
-    meta_length = R_padding + (S_padding << 4)
-    return "%02x" % meta_length + "00" * R_padding + R + "00" * S_padding + S
-
-
-def sig_encode(b):
-    """converts a stable length representation of a ECDSA signature into a DER encoded form"""
-
-    R_padding = ord(b[0]) & 0x0f
-    S_padding = ord(b[0]) >> 4
-
-    R_len = 32 - R_padding
-    S_len = 32 - S_padding
-
-    # reconstruct R
-    offset = 1 + R_padding
-    R_pad = ""
-    if ord(b[offset]) >= 0x80:
-        R_pad = "00"
-        R_len += 1
-
-    R_ret = "02%02x%s" % (R_len, R_pad)
-    R_ret += b[offset:offset + 32 - R_padding].encode('hex')
-
-    # reconsturct S
-    offset += 32 - R_padding + S_padding
-    S_pad = ""
-    if ord(b[offset]) >= 0x80:
-        S_pad = "00"
-        S_len += 1
-
-    S_ret = "02%02x%s" % (S_len, S_pad)
-    S_ret += b[offset:offset + 32 - S_padding].encode('hex')
-
-    return "30%02x" % (R_len + S_len + 4) + R_ret + S_ret

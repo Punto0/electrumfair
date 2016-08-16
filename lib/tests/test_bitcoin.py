@@ -7,7 +7,7 @@ from lib.bitcoin import (
     bip32_root, bip32_public_derivation, bip32_private_derivation, pw_encode,
     pw_decode, Hash, public_key_from_private_key, address_from_private_key,
     is_valid, is_private_key, xpub_from_xprv, is_new_seed, is_old_seed,
-    var_int, op_push)
+    var_int, op_push, ser_to_point, rev_hex)
 
 try:
     import ecdsa
@@ -16,6 +16,14 @@ except ImportError:
 
 
 class Test_bitcoin(unittest.TestCase):
+
+    def test_signature_verfication(self):
+        point = ser_to_point("04ec775cffb203bf47ef358edf66231e5e4e6f247bdaa93ed789b5d3c7b8f384a93af927b62630afe039d4b159c339766207e7f47fbe92ee4bf21a893fdaf87eae".decode('hex'))
+        pubKey = ecdsa.VerifyingKey.from_public_point(point, ecdsa.SECP256k1)
+
+        sig = "304402206b9caba68425b04d6df0e74f520ba2b08b94fcb9064e02f4cf23c1597c9b71ee022042fca1e85dcfa79aa67f62de6361bd73449d159a9535aaaf00dc53e64d01f588".decode('hex')
+        blockHash = rev_hex("12878a98fcc0670c229252f59c1b2daac768b159911aba8f9e4f498c2a8b13d8").decode('hex')
+        pubKey.verify_digest(sig, blockHash, ecdsa.util.sigdecode_der)
 
     def test_crypto(self):
         for message in ["Chancellor on brink of second bailout for banks", chr(255)*512]:
