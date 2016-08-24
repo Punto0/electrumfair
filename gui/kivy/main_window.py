@@ -514,7 +514,7 @@ class ElectrumWindow(App):
         self.receive_screen = None
         self.requests_screen = None
 
-        self.icon = "icons/electrum.png"
+        self.icon = "icons/electrumfair.png"
 
         # connect callbacks
         if self.network:

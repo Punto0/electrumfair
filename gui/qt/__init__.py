@@ -93,7 +93,7 @@ class ElectrumGui:
         # init tray
         self.dark_icon = self.config.get("dark_icon", False)
         self.tray = QSystemTrayIcon(self.tray_icon(), None)
-        self.tray.setToolTip('Electrum')
+        self.tray.setToolTip('ElectrumFair')
         self.tray.activated.connect(self.tray_activated)
         self.build_tray_menu()
         self.tray.show()
@@ -115,9 +115,9 @@ class ElectrumGui:
 
     def tray_icon(self):
         if self.dark_icon:
-            return QIcon(':icons/electrum_dark_icon.png')
+            return QIcon(':icons/electrumfair_dark_icon.png')
         else:
-            return QIcon(':icons/electrum_light_icon.png')
+            return QIcon(':icons/electrumfair_light_icon.png')
 
     def toggle_tray_icon(self):
         self.dark_icon = not self.dark_icon
