@@ -46,7 +46,7 @@ class TrezorCompatibleWallet(BIP44_HW_Wallet):
         client = self.get_client()
         address_path = self.address_id(address)
         address_n = client.expand_path(address_path)
-        msg_sig = client.sign_message('Bitcoin', address_n, message)
+        msg_sig = client.sign_message('FairCoin', address_n, message)
         return msg_sig.signature
 
     def get_input_tx(self, tx_hash):
@@ -239,7 +239,7 @@ class TrezorCompatiblePlugin(HW_PluginBase):
         client = self.get_client(wallet)
         inputs = self.tx_inputs(tx, True)
         outputs = self.tx_outputs(wallet, tx)
-        signed_tx = client.sign_tx('Bitcoin', inputs, outputs)[1]
+        signed_tx = client.sign_tx('FairCoin', inputs, outputs)[1]
         raw = signed_tx.encode('hex')
         tx.update_signatures(raw)
 
@@ -250,7 +250,7 @@ class TrezorCompatiblePlugin(HW_PluginBase):
             return
         address_path = wallet.address_id(address)
         address_n = client.expand_path(address_path)
-        client.get_address('Bitcoin', address_n, True)
+        client.get_address('FairCoin', address_n, True)
 
     def tx_inputs(self, tx, for_sig=False):
         inputs = []

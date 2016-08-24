@@ -40,7 +40,7 @@ import util
 from bitcoin import *
 from interface import Connection, Interface
 from blockchain import Blockchain, CHUNK_SIZE
-from version import ELECTRUM_VERSION, PROTOCOL_VERSION
+from version import ELECTRUMFAIR_VERSION, PROTOCOL_VERSION
 
 FEE_TARGETS = [25, 10, 5, 2]
 
@@ -668,7 +668,7 @@ class Network(util.DaemonThread):
             if interface.has_timed_out():
                 self.connection_down(interface.server)
             elif interface.ping_required():
-                params = [ELECTRUM_VERSION, PROTOCOL_VERSION]
+                params = [ELECTRUMFAIR_VERSION, PROTOCOL_VERSION]
                 self.queue_request('server.version', params, interface)
 
         now = time.time()

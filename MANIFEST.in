@@ -3,7 +3,7 @@ include README.rst
 include electrumfair.conf.sample
 include electrumfair.desktop
 include *.py
-include electrum
+include electrumfair
 recursive-include lib *.py
 recursive-include gui *.py
 recursive-include plugins *.py

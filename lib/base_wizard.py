@@ -158,8 +158,8 @@ class BaseWizard(object):
             v = is_any_key
             title = _("Import keys")
             message = ' '.join([
-                _("To create a watching-only wallet, please enter your master public key (xpub), or a list of Bitcoin addresses."),
-                _("To create a spending wallet, please enter a master private key (xprv), or a list of Bitcoin private keys.")
+                _("To create a watching-only wallet, please enter your master public key (xpub), or a list of FairCoin addresses."),
+                _("To create a spending wallet, please enter a master private key (xprv), or a list of FairCoin private keys.")
             ])
         else:
             v = is_bip32_key

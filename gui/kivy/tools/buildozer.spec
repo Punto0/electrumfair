@@ -1,13 +1,13 @@
 [app]
 
 # (str) Title of your application
-title = Electrum
+title = ElectrumFair
 
 # (str) Package name
-package.name = Electrum
+package.name = ElectrumFair
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.electrum
+package.domain = org.electrumfair
 
 # (str) Source code where the main.py live
 source.dir = .
@@ -24,7 +24,7 @@ source.exclude_dirs = bin, build, dist, contrib, gui/android, gui/qt, gui/kivy/t
 source.exclude_patterns = Makefile,setup*
 
 # (str) Application versioning (method 1)
-version.regex = ELECTRUM_VERSION = '(.*)'
+version.regex = ELECTRUMFAIR_VERSION = '(.*)'
 version.filename = %(source.dir)s/lib/version.py
 
 # (str) Application versioning (method 2)
@@ -35,11 +35,11 @@ requirements = hostpython2, android, openssl, pycrypto, pil, plyer, kivy==master
 
 # (str) Presplash of the application
 #presplash.filename = %(source.dir)s/gui/kivy/theming/splash.png
-presplash.filename = %(source.dir)s/icons/electrum.png
+presplash.filename = %(source.dir)s/icons/electrumfair.png
 
 # (str) Icon of the application
-#icon.filename = %(source.dir)s/icons/electrum_android_launcher_icon.png
-icon.filename = %(source.dir)s/icons/electrum_launcher.png
+#icon.filename = %(source.dir)s/icons/electrumfair_android_launcher_icon.png
+icon.filename = %(source.dir)s/icons/electrumfair_launcher.png
 
 # (str) Supported orientation (one of landscape, portrait or all)
 orientation = portrait

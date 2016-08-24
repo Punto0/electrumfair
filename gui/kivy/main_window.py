@@ -82,7 +82,7 @@ class ElectrumWindow(App):
         self.send_screen.set_URI(uri)
 
     def on_new_intent(self, intent):
-        if intent.getScheme() != 'bitcoin':
+        if intent.getScheme() != 'faircoin':
             return
         uri = intent.getDataString()
         self.set_URI(uri)
@@ -101,7 +101,7 @@ class ElectrumWindow(App):
             Clock.schedule_once(lambda dt: self.history_screen.update())
 
     def _get_bu(self):
-        return self.electrum_config.get('base_unit', 'mBTC')
+        return self.electrum_config.get('base_unit', 'mFAIR')
 
     def _set_bu(self, value):
         assert value in base_units.keys()
@@ -239,7 +239,7 @@ class ElectrumWindow(App):
         if is_address(data):
             self.set_URI(data)
             return
-        if data.startswith('bitcoin:'):
+        if data.startswith('faircoin:'):
             self.set_URI(data)
             return
         # try to decode transaction
@@ -388,7 +388,7 @@ class ElectrumWindow(App):
         run_hook('init_kivy', self)
         # default tab
         self.switch_to('history')
-        # bind intent for bitcoin: URI scheme
+        # bind intent for faircoin: URI scheme
         if platform == 'android':
             from android import activity
             from jnius import autoclass
@@ -422,7 +422,7 @@ class ElectrumWindow(App):
             self.load_wallet(wallet)
             self.on_resume()
         else:
-            Logger.debug('Electrum: Wallet not found. Launching install wizard')
+            Logger.debug('ElectrumFair: Wallet not found. Launching install wizard')
             wizard = Factory.InstallWizard(self.electrum_config, self.network, path)
             wizard.bind(on_wizard_complete=self.on_wizard_complete)
             action = wizard.get_action()

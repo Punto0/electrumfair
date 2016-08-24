@@ -146,7 +146,7 @@ class TrezorClientBase(GuiMixin, PrintError):
         return self.address_from_derivation(derivation)
 
     def address_from_derivation(self, derivation):
-        return self.get_address('Bitcoin', self.expand_path(derivation))
+        return self.get_address('FairCoin', self.expand_path(derivation))
 
     def toggle_passphrase(self):
         if self.features.passphrase_protection:
