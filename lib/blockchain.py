@@ -30,7 +30,7 @@ import util
 from bitcoin import *
 
 MAX_TARGET = 0x00000000FFFF0000000000000000000000000000000000000000000000000000
-HEADER_SIZE = 104
+HEADER_SIZE = 108
 CHUNK_SIZE  = 1500
 
 class Blockchain(util.PrintError):
@@ -38,7 +38,7 @@ class Blockchain(util.PrintError):
     def __init__(self, config, network):
         self.config = config
         self.network = network
-        self.headers_url = "https://electrum.fair-coin.org/download/electrumfair_headers"
+        self.headers_url = "" #"https://electrum.fair-coin.org/download/electrumfair_headers"
         self.local_height = 0
         self.set_local_height()
 
@@ -76,8 +76,9 @@ class Blockchain(util.PrintError):
         s = int_to_hex(res.get('version'), 4) \
             + rev_hex(res.get('prev_block_hash')) \
             + rev_hex(res.get('merkle_root')) \
+            + rev_hex(res.get('payload_hash')) \
             + int_to_hex(int(res.get('timestamp')), 4) \
-            + rev_hex(res.get('block_hash'))
+            + int_to_hex(int(res.get('creatorId')), 4)
         return s
 
     def deserialize_header(self, s):
@@ -86,14 +87,15 @@ class Blockchain(util.PrintError):
         h['version'] = hex_to_int(s[0:4])
         h['prev_block_hash'] = hash_encode(s[4:36])
         h['merkle_root'] = hash_encode(s[36:68])
-        h['timestamp'] = hex_to_int(s[68:72])
-        h['block_hash'] = hash_encode(s[72:104])
+        h['payload_hash'] = hash_encode(s[68:100])
+        h['timestamp'] = hex_to_int(s[100:104])
+        h['creatorId'] = hex_to_int(s[104:108])
         return h
 
     def hash_header(self, header):
         if header is None:
             return '0' * 64
-        return header.get('block_hash')
+        return hash_encode(Hash(self.serialize_header(header).decode('hex')))
 
     def path(self):
         return util.get_headers_path(self.config)
@@ -193,11 +195,13 @@ class Blockchain(util.PrintError):
 
         # Missing header, request it
         if not previous_header:
+            print "previous_header"
             return previous_height
 
         # Does it connect to my chain?
         prev_hash = self.hash_header(previous_header)
         if prev_hash != header.get('prev_block_hash'):
+            print "prev_hash"
             self.print_error("reorg")
             return previous_height
 

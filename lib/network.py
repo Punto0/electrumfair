@@ -44,12 +44,11 @@ from version import ELECTRUMFAIR_VERSION, PROTOCOL_VERSION
 
 FEE_TARGETS = [25, 10, 5, 2]
 
-DEFAULT_PORTS = {'t':'51801', 's':'51802', 'h':'8181', 'g':'8182'}
+DEFAULT_PORTS = {'t':'51811', 's':'51812', 'h':'8181', 'g':'8182'}
 
 DEFAULT_SERVERS = {
-    '172.17.0.23':{'t':'51801', 's':'51802'},
-#    'chain.fair-coin.org':{'s':'51802'},
-#    'fairlectrum.fair-coin.org':{'s':'51802'},
+    'fairlectrum.fair-coin.net':{'s':'51812'},
+    'fairlectrum.fair.to':{'s':'51812'},
 }
 
 NODES_RETRY_INTERVAL = 60
