@@ -31,7 +31,7 @@ from bitcoin import *
 
 MAX_TARGET = 0x00000000FFFF0000000000000000000000000000000000000000000000000000
 HEADER_SIZE = 108
-CHUNK_SIZE  = 1500
+CHUNK_SIZE  = 2016
 
 class Blockchain(util.PrintError):
     '''Manages blockchain headers and their verification'''
