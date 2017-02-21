@@ -1,5 +1,5 @@
 #!/usr/bin/env python2
-
+# -*- coding: UTF8 -*-
 # python setup.py sdist --format=zip,gztar
 
 from setuptools import setup

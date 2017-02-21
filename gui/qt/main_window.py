@@ -168,6 +168,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.tl_windows = []
         self.load_wallet(wallet)
         self.connect_slots(gui_object.timer)
+        self.config.set_key('dynamic_fees', False)
 
     def toggle_addresses_tab(self):
         show_addr = not self.config.get('show_addresses_tab', False)
@@ -458,7 +459,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
     def show_report_bug(self):
         msg = ' '.join([
             _("Please report any bugs as issues on github:<br/>"),
-            "<a href=\"https://github.com/spesmilo/electrum/issues\">https://github.com/spesmilo/electrum/issues</a><br/><br/>",
+            "<a href=\"https://github.com/faircoin/electrumfair\">https://github.com/faircoin/electrumfair</a><br/><br/>",
             _("Before reporting a bug, upgrade to the most recent version of Electrum (latest release or git HEAD), and include the version number in your report."),
             _("Try to explain not only what the bug is, but how it occurs.")
          ])
@@ -894,10 +895,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         grid.addWidget(self.amount_e, 4, 1)
 
         self.max_button = EnterButton(_("Max"), self.spend_max)
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.max_button)
-        hbox.addStretch(1)
-        grid.addLayout(hbox, 4, 3)
+        #hbox = QHBoxLayout()
+        #hbox.addWidget(self.max_button)
+        #hbox.addStretch(1)
+        #grid.addLayout(hbox, 4, 3)
 
         msg = _('FairCoin transactions are in general not free. A transaction fee is paid by the sender of the funds.') + '\n\n'\
               + _('The amount of fee can be decided freely by the sender. However, transactions with low fees take more time to be processed.') + '\n\n'\
@@ -951,6 +952,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         buttons.addStretch(1)
         buttons.addWidget(self.clear_button)
         buttons.addWidget(self.preview_button)
+        buttons.addWidget(self.max_button)
         buttons.addWidget(self.send_button)
         grid.addLayout(buttons, 6, 1, 1, 2)
 
@@ -1054,9 +1056,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                 self.fee_e.setAmount(fee)
 
     def update_fee_edit(self):
-        b = self.config.get('dynamic_fees', True)
-        self.fee_slider.setVisible(b)
-        self.fee_e.setVisible(not b)
+        # b = self.config.get('dynamic_fees', True)
+        self.fee_slider.setVisible(False)
+        self.fee_e.setVisible(True)
 
     def from_list_delete(self, item):
         i = self.from_list.indexOfTopLevelItem(item)
@@ -1205,8 +1207,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         if extra_fee:
             msg.append( _("Additional fees") + ": " + self.format_amount_and_units(extra_fee) )
 
-        if tx.get_fee() >= self.config.get('confirm_fee', 100000):
-            msg.append(_('Warning')+ ': ' + _("The fee for this transaction seems unusually high."))
+        #if tx.get_fee() >= self.config.get('confirm_fee', 100000):
+        #    msg.append(_('Warning')+ ': ' + _("The fee for this transaction seems unusually high."))
 
         if self.wallet.use_encryption:
             msg.append("")
@@ -2366,7 +2368,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         dynfee_cb = QCheckBox(_('Use dynamic fees'))
         dynfee_cb.setChecked(self.config.get('dynamic_fees', True))
         dynfee_cb.setToolTip(_("Use a fee per kB value recommended by the server."))
-        fee_widgets.append((dynfee_cb, None))
+        #fee_widgets.append((dynfee_cb, None))
         def update_feeperkb():
             fee_e.setAmount(self.config.get('fee_per_kb', bitcoin.RECOMMENDED_FEE))
             b = self.config.get('dynamic_fees', False)
@@ -2431,7 +2433,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         units = ['FAIR', 'mFAIR', 'uFAIR']
         msg = _('Base unit of your wallet.')\
-              + '\n1BTC=1000mFAIR.\n' \
+              + '\n1FAIR=1000mFAIR.\n' \
               + _(' These settings affects the fields in the Send tab')+' '
         unit_label = HelpLabel(_('Base unit') + ':', msg)
         unit_combo = QComboBox()
@@ -2499,7 +2501,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.rbf_checkbox.setChecked(False)
         rbf_cb.stateChanged.connect(on_rbf)
         rbf_cb.setToolTip(_('Enable RBF'))
-        fee_widgets.append((rbf_cb, None))
+        #fee_widgets.append((rbf_cb, None))
 
         usechange_cb = QCheckBox(_('Use change addresses'))
         usechange_cb.setChecked(self.wallet.use_change)
@@ -2551,7 +2553,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         tx_widgets.append((chooser_label, chooser_combo))
 
         tabs_info = [
-            (fee_widgets, _('Fees')),
+            #(fee_widgets, _('Fees')),
             (tx_widgets, _('Transactions')),
             (gui_widgets, _('Appearance')),
             (id_widgets, _('Identity')),
