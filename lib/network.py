@@ -321,18 +321,17 @@ class Network(util.DaemonThread):
             value = self.get_interfaces()
         return value
 
+    def response_fee(self, param):
+        if not param.get('error'):
+            self.transaction_fee = int(param['result'] * COIN)
+            self.relay_fee = int(param['result'] * COIN)
+            self.notify('fee')
+        else:
+            print("Response error", param['error'])
+
     def dynfee(self, i):
-#         from bitcoin import RECOMMENDED_FEE
-#         if i < 4:
-#             j = FEE_TARGETS[i]
-#             fee = self.fee_estimates.get(j)
-#         else:
-#             assert i == 4
-#             fee = self.fee_estimates.get(2)
-#             if fee is not None:
-#                 fee += fee/2
-#         if fee is not None:
-#             fee = min(10*RECOMMENDED_FEE, fee)
+        message1 = [('blockchain.relayfee', [])]
+        self.send(message1, self.response_fee)
         return self.transaction_fee
 
     def reverse_dynfee(self, fee_per_kb):

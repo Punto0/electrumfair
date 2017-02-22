@@ -168,7 +168,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.tl_windows = []
         self.load_wallet(wallet)
         self.connect_slots(gui_object.timer)
-        self.config.set_key('dynamic_fees', False)
+        self.config.set_key('dynamic_fees', True)
 
     def toggle_addresses_tab(self):
         show_addr = not self.config.get('show_addresses_tab', False)
