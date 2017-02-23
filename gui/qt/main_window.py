@@ -61,7 +61,7 @@ from transaction_dialog import show_transaction
 
 
 
-from electrum import ELECTRUM_VERSION
+from electrum import ELECTRUMFAIR_VERSION
 import re
 
 from util import *
@@ -126,7 +126,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         if self.config.get("is_maximized"):
             self.showMaximized()
 
-        self.setWindowIcon(QIcon(":icons/electrum.png"))
+        self.setWindowIcon(QIcon(":icons/electrumfair.png"))
         self.init_menubar()
 
         wrtabs = weakref.proxy(tabs)
@@ -168,6 +168,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.tl_windows = []
         self.load_wallet(wallet)
         self.connect_slots(gui_object.timer)
+        self.config.set_key('dynamic_fees', True)
 
     def toggle_addresses_tab(self):
         show_addr = not self.config.get('show_addresses_tab', False)
@@ -307,8 +308,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         if self.wallet.is_watching_only():
             msg = ' '.join([
                 _("This wallet is watching-only."),
-                _("This means you will not be able to spend Bitcoins with it."),
-                _("Make sure you own the seed phrase or the private keys, before you request Bitcoins to be sent to this wallet.")
+                _("This means you will not be able to spend FairCoins with it."),
+                _("Make sure you own the seed phrase or the private keys, before you request FairCoins to be sent to this wallet.")
             ])
             self.show_warning(msg, title=_('Information'))
 
@@ -427,7 +428,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         help_menu = menubar.addMenu(_("&Help"))
         help_menu.addAction(_("&About"), self.show_about)
-        help_menu.addAction(_("&Official website"), lambda: webbrowser.open("http://electrum.org"))
+        help_menu.addAction(_("&Official website"), lambda: webbrowser.open("https://electrum.fair-coin.org"))
         help_menu.addSeparator()
         help_menu.addAction(_("&Documentation"), lambda: webbrowser.open("http://docs.electrum.org/")).setShortcut(QKeySequence.HelpContents)
         help_menu.addAction(_("&Report Bug"), self.show_report_bug)
@@ -440,18 +441,18 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         d = self.network.get_donation_address()
         if d:
             host = self.network.get_parameters()[0]
-            self.pay_to_URI('bitcoin:%s?message=donation for %s'%(d, host))
+            self.pay_to_URI('faircoin:%s?message=donation for %s'%(d, host))
         else:
             self.show_error(_('No donation address for this server'))
 
     def show_about(self):
         QMessageBox.about(self, "Electrum",
-            _("Version")+" %s" % (self.wallet.electrum_version) + "\n\n" + _("Electrum's focus is speed, with low resource usage and simplifying Bitcoin. You do not need to perform regular backups, because your wallet can be recovered from a secret phrase that you can memorize or write on paper. Startup times are instant because it operates in conjunction with high-performance servers that handle the most complicated parts of the Bitcoin system."))
+            _("Version")+" %s" % (self.wallet.electrum_version) + "\n\n" + _("Electrum's focus is speed, with low resource usage and simplifying FairCoin. You do not need to perform regular backups, because your wallet can be recovered from a secret phrase that you can memorize or write on paper. Startup times are instant because it operates in conjunction with high-performance servers that handle the most complicated parts of the FairCoin system."))
 
     def show_report_bug(self):
         msg = ' '.join([
             _("Please report any bugs as issues on github:<br/>"),
-            "<a href=\"https://github.com/spesmilo/electrum/issues\">https://github.com/spesmilo/electrum/issues</a><br/><br/>",
+            "<a href=\"https://github.com/faircoin/electrumfair\">https://github.com/faircoin/electrumfair</a><br/><br/>",
             _("Before reporting a bug, upgrade to the most recent version of Electrum (latest release or git HEAD), and include the version number in your report."),
             _("Try to explain not only what the bug is, but how it occurs.")
          ])
@@ -534,11 +535,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
     def base_unit(self):
         assert self.decimal_point in [2, 5, 8]
         if self.decimal_point == 2:
-            return 'bits'
+            return 'uFAIR'
         if self.decimal_point == 5:
-            return 'mBTC'
+            return 'mFAIR'
         if self.decimal_point == 8:
-            return 'BTC'
+            return 'FAIR'
         raise Exception('Unknown base unit')
 
     def update_status(self):
@@ -619,7 +620,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.receive_address_e = ButtonsLineEdit()
         self.receive_address_e.addCopyButton(self.app)
         self.receive_address_e.setReadOnly(True)
-        msg = _('Bitcoin address where the payment should be received. Note that each payment request uses a different Bitcoin address.')
+        msg = _('FairCoin address where the payment should be received. Note that each payment request uses a different FairCoin address.')
         self.receive_address_label = HelpLabel(_('Receiving address'), msg)
         self.receive_address_e.textChanged.connect(self.update_receive_qr)
         self.receive_address_e.setFocusPolicy(Qt.NoFocus)
@@ -643,8 +644,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         msg = ' '.join([
             _('Expiration date of your request.'),
             _('This information is seen by the recipient if you send them a signed payment request.'),
-            _('Expired requests have to be deleted manually from your list, in order to free the corresponding Bitcoin addresses.'),
-            _('The bitcoin address never expires and will always be part of this electrum wallet.'),
+            _('Expired requests have to be deleted manually from your list, in order to free the corresponding FairCoin addresses.'),
+            _('The FairCoin address never expires and will always be part of this electrum wallet.'),
         ])
         grid.addWidget(HelpLabel(_('Request expires'), msg), 3, 0)
         grid.addWidget(self.expires_combo, 3, 1)
@@ -856,7 +857,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.amount_e = BTCAmountEdit(self.get_decimal_point)
         self.payto_e = PayToEdit(self)
         msg = _('Recipient of the funds.') + '\n\n'\
-              + _('You may enter a Bitcoin address, a label from your list of contacts (a list of completions will be proposed), or an alias (email-like address that forwards to a Bitcoin address)')
+              + _('You may enter a FairCoin address, a label from your list of contacts (a list of completions will be proposed), or an alias (email-like address that forwards to a FairCoin address)')
         payto_label = HelpLabel(_('Pay to'), msg)
         grid.addWidget(payto_label, 1, 0)
         grid.addWidget(self.payto_e, 1, 1, 1, -1)
@@ -890,12 +891,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         grid.addWidget(self.amount_e, 4, 1)
 
         self.max_button = EnterButton(_("Max"), self.spend_max)
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.max_button)
-        hbox.addStretch(1)
-        grid.addLayout(hbox, 4, 3)
+        #hbox = QHBoxLayout()
+        #hbox.addWidget(self.max_button)
+        #hbox.addStretch(1)
+        #grid.addLayout(hbox, 4, 3)
 
-        msg = _('Bitcoin transactions are in general not free. A transaction fee is paid by the sender of the funds.') + '\n\n'\
+        msg = _('FairCoin transactions are in general not free. A transaction fee is paid by the sender of the funds.') + '\n\n'\
               + _('The amount of fee can be decided freely by the sender. However, transactions with low fees take more time to be processed.') + '\n\n'\
               + _('A suggested fee is automatically added to this field. You may override it. The suggested fee increases with the size of the transaction.')
         self.fee_e_label = HelpLabel(_('Fee'), msg)
@@ -948,6 +949,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         buttons.addStretch(1)
         buttons.addWidget(self.clear_button)
         buttons.addWidget(self.preview_button)
+        buttons.addWidget(self.max_button)
         buttons.addWidget(self.send_button)
         grid.addLayout(buttons, 6, 1, 1, 2)
 
@@ -1055,9 +1057,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                 self.fee_e.setAmount(fee)
 
     def update_fee_edit(self):
-        b = self.config.get('dynamic_fees', True)
-        self.fee_slider.setVisible(b)
-        self.fee_e.setVisible(not b)
+        # b = self.config.get('dynamic_fees', True)
+        self.fee_slider.setVisible(False)
+        self.fee_e.setVisible(True)
 
     def from_list_delete(self, item):
         i = self.from_list.indexOfTopLevelItem(item)
@@ -1145,10 +1147,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         for _type, addr, amount in outputs:
             if addr is None:
-                self.show_error(_('Bitcoin Address is None'))
+                self.show_error(_('FairCoin Address is None'))
                 return
             if _type == TYPE_ADDRESS and not bitcoin.is_address(addr):
-                self.show_error(_('Invalid Bitcoin Address'))
+                self.show_error(_('Invalid FairCoin Address'))
                 return
             if amount is None:
                 self.show_error(_('Invalid Amount'))
@@ -1206,8 +1208,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         if extra_fee:
             msg.append( _("Additional fees") + ": " + self.format_amount_and_units(extra_fee) )
 
-        if tx.get_fee() >= self.config.get('confirm_fee', 100000):
-            msg.append(_('Warning')+ ': ' + _("The fee for this transaction seems unusually high."))
+        #if tx.get_fee() >= self.config.get('confirm_fee', 100000):
+        #    msg.append(_('Warning')+ ': ' + _("The fee for this transaction seems unusually high."))
 
         if self.wallet.has_password():
             msg.append("")
@@ -1359,7 +1361,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         try:
             out = util.parse_URI(unicode(URI), self.on_pr)
         except BaseException as e:
-            self.show_error(_('Invalid bitcoin URI:') + '\n' + str(e))
+            self.show_error(_('Invalid faircoin URI:') + '\n' + str(e))
             return
         self.tabs.setCurrentIndex(1)
         r = out.get('r')
@@ -1929,8 +1931,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             return
         if not data:
             return
-        # if the user scanned a bitcoin URI
-        if data.startswith("bitcoin:"):
+        # if the user scanned a faircoin URI
+        if data.startswith("faircoin:"):
             self.pay_to_URI(data)
             return
         # else if the user scanned an offline signed tx
@@ -2308,7 +2310,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         dynfee_cb = QCheckBox(_('Use dynamic fees'))
         dynfee_cb.setChecked(self.config.get('dynamic_fees', True))
         dynfee_cb.setToolTip(_("Use a fee per kB value recommended by the server."))
-        fee_widgets.append((dynfee_cb, None))
+        #fee_widgets.append((dynfee_cb, None))
         def update_feeperkb():
             fee_e.setAmount(self.config.get('fee_per_kb', bitcoin.RECOMMENDED_FEE))
             b = self.config.get('dynamic_fees', True)
@@ -2371,9 +2373,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         SSL_id_e.setReadOnly(True)
         id_widgets.append((SSL_id_label, SSL_id_e))
 
-        units = ['BTC', 'mBTC', 'bits']
+        units = ['FAIR', 'mFAIR', 'uFAIR']
         msg = _('Base unit of your wallet.')\
-              + '\n1BTC=1000mBTC.\n' \
+              + '\n1FAIR=1000mFAIR.\n' \
               + _(' These settings affects the fields in the Send tab')+' '
         unit_label = HelpLabel(_('Base unit') + ':', msg)
         unit_combo = QComboBox()
@@ -2385,11 +2387,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                 return
             edits = self.amount_e, self.fee_e, self.receive_amount_e, fee_e
             amounts = [edit.get_amount() for edit in edits]
-            if unit_result == 'BTC':
+            if unit_result == 'FAIR':
                 self.decimal_point = 8
-            elif unit_result == 'mBTC':
+            elif unit_result == 'mFAIR':
                 self.decimal_point = 5
-            elif unit_result == 'bits':
+            elif unit_result == 'uFAIR':
                 self.decimal_point = 2
             else:
                 raise Exception('Unknown base unit')
@@ -2441,7 +2443,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.rbf_checkbox.setChecked(False)
         rbf_cb.stateChanged.connect(on_rbf)
         rbf_cb.setToolTip(_('Enable RBF'))
-        fee_widgets.append((rbf_cb, None))
+        #fee_widgets.append((rbf_cb, None))
 
         usechange_cb = QCheckBox(_('Use change addresses'))
         usechange_cb.setChecked(self.wallet.use_change)
@@ -2493,7 +2495,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         tx_widgets.append((chooser_label, chooser_combo))
 
         tabs_info = [
-            (fee_widgets, _('Fees')),
+            #(fee_widgets, _('Fees')),
             (tx_widgets, _('Transactions')),
             (gui_widgets, _('Appearance')),
             (id_widgets, _('Identity')),

@@ -6,7 +6,7 @@ dist/
 *.egg/
 /electrum.py
 contrib/pyinstaller/
-Electrum.egg-info/
+ElectrumFair.egg-info/
 gui/qt/icons_rc.py
 locale/
 .devlocaltmp/
@@ -16,3 +16,6 @@ env/
 .tox/
 .buildozer/
 bin/
+.project
+.pydevproject
+.settings/

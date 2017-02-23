@@ -15,11 +15,11 @@ import shutil
 import sys
 
 from lib.util import print_error
-from lib.version import ELECTRUM_VERSION as version
+from lib.version import ELECTRUMFAIR_VERSION as version
 
 
-name = "Electrum"
-mainscript = 'electrum'
+name = "ElectrumFair"
+mainscript = 'electrumfair'
 
 if sys.version_info[:3] < (2, 6, 0):
     print_error("Error: " + name + " requires Python version >= 2.6.0...")
@@ -28,7 +28,7 @@ if sys.version_info[:3] < (2, 6, 0):
 if sys.platform == 'darwin':
     from plistlib import Plist
     plist = Plist.fromFile('Info.plist')
-    plist.update(dict(CFBundleIconFile='electrum.icns'))
+    plist.update(dict(CFBundleIconFile='electrumfair.icns'))
 
     shutil.copy(mainscript, mainscript + '.py')
     mainscript += '.py'

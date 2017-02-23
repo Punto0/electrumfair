@@ -155,7 +155,7 @@ class BaseWizard(object):
             title = _("Create keystore from keys")
             message = ' '.join([
                 _("To create a watching-only wallet, please enter your master public key (xpub)."),
-                _("To create a spending wallet, please enter a master private key (xprv), or a list of Bitcoin private keys.")
+                _("To create a spending wallet, please enter a master private key (xprv), or a list of FairCoin private keys.")
             ])
             self.add_xpub_dialog(title=title, message=message, run_next=self.on_restore_from_key, is_valid=v)
         else:

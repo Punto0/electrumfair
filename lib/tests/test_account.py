@@ -43,7 +43,7 @@ class Test_Account(unittest.TestCase):
         self.assertEquals(a.dump(), v)
         self.assertEquals(a.get_master_pubkeys(), [v['xpub']])
         self.assertEquals(a.first_address(),
-                          ('1EtJphMVpes4UKm8bYu5D1fGvNoTSJM3ZL', v['receiving'][0]))
+                          ('fTzcN1fsGntJAW1MvQYMGvX1iJH53y1LCi', v['receiving'][0]))
 
         xprv = 'xprv9s21ZrQH143K2eGb6FZ81nLW44cyy7mrAiqg4VB4pQKDrmizjc1pSuynnpeiaMPdZxvrfvdBi5oqFi9hmsV7MrsVquKkruQ7TJPCfVuPSdw'
         storage = dict(
@@ -53,7 +53,7 @@ class Test_Account(unittest.TestCase):
         )
         w = wallet.BIP32_Wallet(storage)
         self.assertEquals(a.get_private_key(sequence=[0, 0], wallet=w, password=None),
-                          ['KxuBFG13CPUBwPAUWvZSQ3mjNNjHoDghfxnax6RbwS3Rw8tqSzCk'])
+                          ['a1z5ZbEVpzWFWYRT484H2am11epG6ySm8vxy7FLbate3gam49yiX'])
 
         for for_change in [0, 1]:
             for n in range(6):
@@ -94,10 +94,10 @@ class Test_Account(unittest.TestCase):
 
         a = account.OldAccount(v)
         self.assertEquals(a.get_master_pubkeys(), [v['mpk']])
-        self.assertEquals(a.get_address(for_change=0, n=0), '1FHsTashEBUNPQwC1CwVjnKUxzwgw73pU4')
-        self.assertEquals(a.get_address(for_change=0, n=2), '1Got6wbjxQ592WfwLcfLLxn3aTetLzpTom')
-        self.assertEquals(a.get_address(for_change=1, n=0), '16RyjNDNEwwWkv6mvptvxT9qNN5shJxcxo')
-        self.assertEquals(a.get_address(for_change=1, n=3), '1M6kHXnzmiUNsoYKZgzPDVpsSmMcfKFiiM')
+        self.assertEquals(a.get_address(for_change=0, n=0), 'fUQAzuC4gKVc5bBRL4amohBDkvRJYa26aj')
+        self.assertEquals(a.get_address(for_change=0, n=2), 'fVvBeFv7QY6NigvAfUJcQsdnNP8Vr3bhyX')
+        self.assertEquals(a.get_address(for_change=1, n=0), 'fKYHGgXjh5xkT6M1FgYD2N1aAHZVFfkX8j')
+        self.assertEquals(a.get_address(for_change=1, n=3), 'faD3pr7NDrVcZynYtYdfHQgcEgqEA6HuAC')
 
         self.assertTrue(a.check_seed(seed))
         with self.assertRaises(account.InvalidPassword):
@@ -109,7 +109,7 @@ class Test_Account(unittest.TestCase):
         }
         w = wallet.OldWallet(storage)
         privkey = a.get_private_key(sequence=[0, 0], wallet=w, password=None)
-        self.assertEquals(privkey, ['5Khs7w6fBkogoj1v71Mdt4g8m5kaEyRaortmK56YckgTubgnrhz'])
+        self.assertEquals(privkey, ['8WNasxjh9B4CcfDvE5KZVXdhkvFnzsUmZaczVJSi41KJndM3TQm'])
 
         for for_change in [0, 1]:
             for n in range(5):

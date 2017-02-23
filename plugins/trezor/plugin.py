@@ -42,7 +42,7 @@ class TrezorCompatibleKeyStore(Hardware_KeyStore):
         client = self.get_client()
         address_path = self.get_derivation() + "/%d/%d"%sequence
         address_n = client.expand_path(address_path)
-        msg_sig = client.sign_message('Bitcoin', address_n, message)
+        msg_sig = client.sign_message('FairCoin', address_n, message)
         return msg_sig.signature
 
     def sign_transaction(self, tx, password):
@@ -233,7 +233,7 @@ class TrezorCompatiblePlugin(HW_PluginBase):
         client = self.get_client(keystore)
         inputs = self.tx_inputs(tx, True)
         outputs = self.tx_outputs(keystore.get_derivation(), tx)
-        signed_tx = client.sign_tx('Bitcoin', inputs, outputs)[1]
+        signed_tx = client.sign_tx('FairCoin', inputs, outputs)[1]
         raw = signed_tx.encode('hex')
         tx.update_signatures(raw)
 
@@ -246,7 +246,7 @@ class TrezorCompatiblePlugin(HW_PluginBase):
         derivation = wallet.keystore.derivation
         address_path = "%s/%d/%d"%(derivation, change, index)
         address_n = client.expand_path(address_path)
-        client.get_address('Bitcoin', address_n, True)
+        client.get_address('FairCoin', address_n, True)
 
     def tx_inputs(self, tx, for_sig=False):
         inputs = []
@@ -326,9 +326,9 @@ class TrezorCompatiblePlugin(HW_PluginBase):
                 else:
                     txoutputtype.address = address
                 addrtype, hash_160 = bc_address_to_hash_160(address)
-                if addrtype == 0:
+                if addrtype == 95:
                     txoutputtype.script_type = self.types.PAYTOADDRESS
-                elif addrtype == 5:
+                elif addrtype == 36:
                     txoutputtype.script_type = self.types.PAYTOSCRIPTHASH
                 else:
                     raise BaseException('addrtype')

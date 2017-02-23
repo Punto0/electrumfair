@@ -49,8 +49,8 @@ import rsakey
 
 from bitcoin import TYPE_ADDRESS
 
-REQUEST_HEADERS = {'Accept': 'application/bitcoin-paymentrequest', 'User-Agent': 'Electrum'}
-ACK_HEADERS = {'Content-Type':'application/bitcoin-payment','Accept':'application/bitcoin-paymentack','User-Agent':'Electrum'}
+REQUEST_HEADERS = {'Accept': 'application/faircoin-paymentrequest', 'User-Agent': 'ElectrumFair'}
+ACK_HEADERS = {'Content-Type':'application/faircoin-payment','Accept':'application/faircoin-paymentack','User-Agent':'ElectrumFair'}
 
 ca_path = requests.certs.where()
 ca_list, ca_keyID = x509.load_certificates(ca_path)
