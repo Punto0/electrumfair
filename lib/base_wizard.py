@@ -32,10 +32,9 @@ from plugins import run_hook
 
 class BaseWizard(object):
 
-    def __init__(self, config, network, path):
+    def __init__(self, config, path):
         super(BaseWizard, self).__init__()
         self.config = config
-        self.network = network
         self.storage = WalletStorage(path)
         self.wallet = None
         self.stack = []
@@ -209,7 +208,12 @@ class BaseWizard(object):
 
     def on_device(self, name, device_info):
         self.plugin = self.plugins.get_plugin(name)
-        self.plugin.setup_device(device_info, self)
+        try:
+            self.plugin.setup_device(device_info, self)
+        except BaseException as e:
+            self.show_error(str(e))
+            self.choose_hw_device()
+            return
         if self.wallet_type=='multisig':
             # There is no general standard for HD multisig.
             # This is partially compatible with BIP45; assumes index=0

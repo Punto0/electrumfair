@@ -269,8 +269,23 @@ class Abstract_Wallet(PrintError):
     def get_private_key(self, address, password):
         if self.is_watching_only():
             return []
-        sequence = self.get_address_index(address)
-        return [ self.keystore.get_private_key(sequence, password) ]
+        if self.keystore.can_import():
+            i = self.receiving_addresses.index(address)
+            pubkey = self.receiving_pubkeys[i]
+            pk = self.keystore.get_private_key(pubkey, password)
+        else:
+            sequence = self.get_address_index(address)
+            pk = self.keystore.get_private_key(sequence, password)
+        return [pk]
+
+    def get_public_key(self, address):
+        if self.keystore.can_import():
+            i = self.receiving_addresses.index(address)
+            pubkey = self.receiving_pubkeys[i]
+        else:
+            sequence = self.get_address_index(address)
+            pubkey = self.get_pubkey(*sequence)
+        return pubkey
 
     def get_public_keys(self, address):
         sequence = self.get_address_index(address)
@@ -789,6 +804,10 @@ class Abstract_Wallet(PrintError):
         f = self.network.relay_fee if self.network and self.network.relay_fee else RELAY_FEE
         return min(f, MAX_RELAY_FEE)
 
+    def dust_threshold(self):
+        # Change <= dust threshold is added to the tx fee
+        return 182 * 3 * self.relayfee() / 1000
+
     def get_tx_fee(self, tx):
         # this method can be overloaded
         return tx.get_fee()
@@ -829,14 +848,11 @@ class Abstract_Wallet(PrintError):
         else:
             fee_estimator = lambda size: fixed_fee
 
-        # Change <= dust threshold is added to the tx fee
-        dust_threshold = 182 * 3 * self.relayfee() / 1000
-
         # Let the coin chooser select the coins to spend
         max_change = self.max_change_outputs if self.multiple_change else 1
         coin_chooser = coinchooser.get_coin_chooser(config)
         tx = coin_chooser.make_tx(coins, outputs, change_addrs[:max_change],
-                                  fee_estimator, dust_threshold)
+                                  fee_estimator, self.dust_threshold())
 
         # Sort the inputs and outputs deterministically
         tx.BIP_LI01_sort()
@@ -993,20 +1009,33 @@ class Abstract_Wallet(PrintError):
 
     def bump_fee(self, tx, delta):
         if tx.is_final():
-            raise BaseException("cannot bump fee: transaction is final")
+            raise BaseException(_("Cannot bump fee: transaction is final"))
         inputs = copy.deepcopy(tx.inputs())
         outputs = copy.deepcopy(tx.outputs())
         for txin in inputs:
             txin['signatures'] = [None] * len(txin['signatures'])
-        for i, o in enumerate(outputs):
+            self.add_input_info(txin)
+        # use own outputs
+        s = filter(lambda x: self.is_mine(x[1]), outputs)
+        # ... unless there is none
+        if not s:
+            s = outputs
+        # prioritize low value outputs, to get rid of dust
+        s = sorted(s, key=lambda x: x[2])
+        for o in s:
+            i = outputs.index(o)
             otype, address, value = o
-            if self.is_mine(address) and value >= delta:
+            if value - delta >= self.dust_threshold():
                 outputs[i] = otype, address, value - delta
                 break
-        else:
-            raise BaseException("cannot bump fee")
-        new_tx = Transaction.from_io(inputs, outputs)
-        return new_tx
+            else:
+                del outputs[i]
+                delta -= value
+                if delta > 0:
+                    continue
+        if delta > 0:
+            raise BaseException(_('Cannot bump fee: cound not find suitable outputs'))
+        return Transaction.from_io(inputs, outputs)
 
     def add_input_info(self, txin):
         # Add address for utxo that are in wallet
@@ -1025,6 +1054,7 @@ class Abstract_Wallet(PrintError):
         for k in self.get_keystores():
             if k.can_sign(tx):
                 return True
+        return False
 
     def get_input_tx(self, tx_hash):
         # First look up an input transaction in the wallet where it
@@ -1046,11 +1076,17 @@ class Abstract_Wallet(PrintError):
             txin['prev_tx'] = self.get_input_tx(tx_hash)
 
         # add output info for hw wallets
-        tx.output_info = []
-        for i, txout in enumerate(tx.outputs()):
+        info = {}
+        xpubs = self.get_master_public_keys()
+        for txout in tx.outputs():
             _type, addr, amount = txout
-            change, address_index = self.get_address_index(addr) if self.is_change(addr) else (None, None)
-            tx.output_info.append((change, address_index))
+            if self.is_change(addr):
+                index = self.get_address_index(addr)
+                pubkeys = self.get_public_keys(addr)
+                # sort xpubs using the order of pubkeys
+                sorted_pubkeys, sorted_xpubs = zip(*sorted(zip(pubkeys, xpubs)))
+                info[addr] = index, sorted_xpubs, self.m if isinstance(self, Multisig_Wallet) else None
+        tx.output_info = info
 
         # sign
         for k in self.get_keystores():
@@ -1170,7 +1206,6 @@ class Abstract_Wallet(PrintError):
         self.receive_requests[key] = req
         self.storage.put('payment_requests', self.receive_requests)
 
-
     def add_payment_request(self, req, config):
         import os
         addr = req['address']
@@ -1231,6 +1266,9 @@ class Abstract_Wallet(PrintError):
     def can_import_address(self):
         return False
 
+    def can_delete_address(self):
+        return False
+
     def add_address(self, address):
         if address not in self.history:
             self.history[address] = []
@@ -1282,7 +1320,7 @@ class Imported_Wallet(Abstract_Wallet):
         return False
 
     def get_master_public_keys(self):
-        return {}
+        return []
 
     def is_beyond_limit(self, address, is_change):
         return False
@@ -1301,6 +1339,9 @@ class Imported_Wallet(Abstract_Wallet):
         self.storage.write()
         self.add_address(address)
         return address
+
+    def can_delete_address(self):
+        return True
 
     def delete_address(self, address):
         if address not in self.addresses:
@@ -1336,8 +1377,7 @@ class P2PK_Wallet(Abstract_Wallet):
         return pubkey_list[i]
 
     def get_public_keys(self, address):
-        sequence = self.get_address_index(address)
-        return [self.get_pubkey(*sequence)]
+        return [self.get_public_key(address)]
 
     def get_pubkey_index(self, pubkey):
         if pubkey in self.receiving_pubkeys:
@@ -1347,9 +1387,14 @@ class P2PK_Wallet(Abstract_Wallet):
         raise BaseExeption('pubkey not found')
 
     def add_input_sig_info(self, txin, address):
-        txin['derivation'] = derivation = self.get_address_index(address)
-        x_pubkey = self.keystore.get_xpubkey(*derivation)
-        pubkey = self.get_pubkey(*derivation)
+        if not self.keystore.can_import():
+            txin['derivation'] = derivation = self.get_address_index(address)
+            x_pubkey = self.keystore.get_xpubkey(*derivation)
+            pubkey = self.get_pubkey(*derivation)
+        else:
+            pubkey = self.get_public_key(address)
+            assert pubkey is not None
+            x_pubkey = pubkey
         txin['x_pubkeys'] = [x_pubkey]
         txin['pubkeys'] = [pubkey]
         txin['signatures'] = [None]
@@ -1388,9 +1433,6 @@ class Deterministic_Wallet(Abstract_Wallet):
 
     def add_seed(self, seed, pw):
         self.keystore.add_seed(seed, pw)
-
-    def get_mnemonic(self, password):
-        return self.keystore.get_mnemonic(password)
 
     def change_gap_limit(self, value):
         '''This method is not called in the code, it is kept for console use'''
@@ -1483,7 +1525,7 @@ class Deterministic_Wallet(Abstract_Wallet):
         return True
 
     def get_master_public_keys(self):
-        return {'x':self.get_master_public_key()}
+        return [self.get_master_public_key()]
 
     def get_fingerprint(self):
         return self.get_master_public_key()
@@ -1527,6 +1569,17 @@ class Standard_Wallet(Deterministic_Wallet, P2PK_Wallet):
     def save_keystore(self):
         self.storage.put('keystore', self.keystore.dump())
 
+    def can_delete_address(self):
+        return self.keystore.can_import()
+
+    def delete_address(self, address):
+        pubkey = self.get_public_key(address)
+        self.keystore.delete_imported_key(pubkey)
+        self.save_keystore()
+        self.receiving_pubkeys.remove(pubkey)
+        self.receiving_addresses.remove(address)
+        self.storage.write()
+
     def can_import_privkey(self):
         return self.keystore.can_import()
 
@@ -1537,6 +1590,7 @@ class Standard_Wallet(Deterministic_Wallet, P2PK_Wallet):
         self.save_pubkeys()
         addr = self.pubkeys_to_address(pubkey)
         self.receiving_addresses.append(addr)
+        self.storage.write()
         self.add_address(addr)
         return addr
 
@@ -1564,7 +1618,7 @@ class Multisig_Wallet(Deterministic_Wallet):
         return address
 
     def new_pubkeys(self, c, i):
-        return [k.derive_pubkey(c, i) for k in self.keystores.values()]
+        return [k.derive_pubkey(c, i) for k in self.get_keystores()]
 
     def load_keystore(self):
         self.keystores = {}
@@ -1581,7 +1635,7 @@ class Multisig_Wallet(Deterministic_Wallet):
         return self.keystores.get('x1/')
 
     def get_keystores(self):
-        return self.keystores.values()
+        return [self.keystores[i] for i in sorted(self.keystores.keys())]
 
     def update_password(self, old_pw, new_pw):
         for name, keystore in self.keystores.items():
@@ -1605,7 +1659,7 @@ class Multisig_Wallet(Deterministic_Wallet):
         return self.keystore.get_master_public_key()
 
     def get_master_public_keys(self):
-        return dict(map(lambda x: (x[0], x[1].get_master_public_key()), self.keystores.items()))
+        return [k.get_master_public_key() for k in self.get_keystores()]
 
     def get_fingerprint(self):
         return ''.join(sorted(self.get_master_public_keys()))
