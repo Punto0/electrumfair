@@ -1,4 +1,5 @@
-ELECTRUMFAIR_VERSION = '2.7.2'  # version of the client package
+ELECTRUMFAIR_VERSION = '2.7.5'  # version of the client package
+ELECTRUM_VERSION = '2.7.5'  # version of the client package
 PROTOCOL_VERSION = '0.10'   # protocol version requested
 
 OLD_SEED_VERSION = 4        # electrum versions < 2.0

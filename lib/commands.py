@@ -43,7 +43,6 @@ from transaction import Transaction
 import paymentrequest
 from paymentrequest import PR_PAID, PR_UNPAID, PR_UNKNOWN, PR_EXPIRED
 import contacts
-
 known_commands = {}
 
 class Command:
@@ -331,8 +330,8 @@ class Commands:
     @command('')
     def version(self):
         """Return the version of electrum."""
-        import electrum  # Needs to stay here to prevent ciruclar imports
-        return electrum.ELECTRUMFAIR_VERSION
+        from version import ELECTRUMFAIR_VERSION
+        return ELECTRUMFAIR_VERSION
 
     @command('w')
     def getmpk(self):
@@ -368,18 +367,16 @@ class Commands:
             raise BaseException('cannot verify alias', x)
         return out['address']
 
-    @command('n')
-    def sweep(self, privkey, destination, tx_fee=None, nocheck=False):
+    @command('nw')
+    def sweep(self, privkey, destination, tx_fee=None, nocheck=False, imax=100):
         """Sweep private keys. Returns a transaction that spends UTXOs from
         privkey to a destination address. The transaction is not
         broadcasted."""
         privkeys = privkey if type(privkey) is list else [privkey]
         self.nocheck = nocheck
         dest = self._resolver(destination)
-        if tx_fee is None:
-            tx_fee = 0.0001
-        fee = int(Decimal(tx_fee)*COIN)
-        return Transaction.sweep(privkeys, self.network, dest, fee)
+        tx = self.wallet.sweep(privkeys, self.network, self.config, dest, tx_fee, imax)
+        return tx.as_dict() if tx else None
 
     @command('wp')
     def signmessage(self, address, message):
@@ -398,7 +395,6 @@ class Commands:
         self.nocheck = nocheck
         change_addr = self._resolver(change_addr)
         domain = None if domain is None else map(self._resolver, domain)
-        fee = None if fee is None else int(COIN*Decimal(fee))
         final_outputs = []
         for address, amount in outputs:
             address = self._resolver(address)
@@ -655,7 +651,12 @@ command_options = {
     'show_balance':("-b", "--balance",     "Show the balances of listed addresses"),
     'show_labels': ("-l", "--labels",      "Show the labels of listed addresses"),
     'nocheck':     (None, "--nocheck",     "Do not verify aliases"),
+<<<<<<< HEAD
     'tx_fee':      ("-f", "--fee",         "Transaction fee (in FAIR)"),
+=======
+    'imax':        (None, "--imax",        "Maximum number of inputs"),
+    'tx_fee':      ("-f", "--fee",         "Transaction fee (in BTC)"),
+>>>>>>> electrum-2.7.5
     'from_addr':   ("-F", "--from",        "Source address. If it isn't in the wallet, it will ask for the private key unless supplied in the format public_key:private_key. It's not saved in the wallet."),
     'change_addr': ("-c", "--change",      "Change address. Default is a spare address, or the source address if it's not in the wallet"),
     'nbits':       (None, "--nbits",       "Number of bits of entropy"),
@@ -681,12 +682,13 @@ json_loads = lambda x: json.loads(x, parse_float=lambda x: str(Decimal(x)))
 arg_types = {
     'num': int,
     'nbits': int,
+    'imax': int,
     'tx': tx_from_str,
     'pubkeys': json_loads,
     'jsontx': json_loads,
     'inputs': json_loads,
     'outputs': json_loads,
-    'tx_fee': lambda x: str(Decimal(x)) if x is not None else None,
+    'tx_fee': lambda x: int(COIN*Decimal(x)) if x is not None else None,
     'amount': lambda x: str(Decimal(x)) if x!='!' else '!',
 }
 

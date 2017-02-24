@@ -227,6 +227,7 @@ Builder.load_string('''
             id: text_input_seed
             text: ''
             on_text: Clock.schedule_once(root.on_text)
+            on_release: root.options_dialog()
         SeedLabel:
             text: root.message
         BoxLayout:
@@ -397,10 +398,12 @@ Builder.load_string('''
         height: self.minimum_height
         orientation: 'vertical'
         spacing: '12dp'
-        SeedLabel:
-            text: root.message
         SeedButton:
             text: root.seed_text
+            on_release: root.options_dialog()
+        SeedLabel:
+            text: root.message
+
 
 <LineDialog>
 
@@ -523,14 +526,22 @@ class LineDialog(WizardDialog):
 class ShowSeedDialog(WizardDialog):
     seed_text = StringProperty('')
     message = _("If you forget your PIN or lose your device, your seed phrase will be the only way to recover your funds.")
+    ext = False
 
     def on_parent(self, instance, value):
         if value:
             app = App.get_running_app()
             self._back = _back = partial(self.ids.back.dispatch, 'on_release')
 
+    def options_dialog(self):
+        from seed_options import SeedOptionsDialog
+        def callback(status):
+            self.ext = status
+        d = SeedOptionsDialog(self.ext, callback)
+        d.open()
+
     def get_params(self, b):
-        return (True,)
+        return (self.ext,)
 
 
 class WordButton(Button):
@@ -551,6 +562,14 @@ class RestoreSeedDialog(WizardDialog):
         self.ids.text_input_seed.text = test_seed if is_test else ''
         self.message = _('Please type your seed phrase using the virtual keyboard.')
         self.title = _('Enter Seed')
+        self.ext = False
+
+    def options_dialog(self):
+        from seed_options import SeedOptionsDialog
+        def callback(status):
+            self.ext = status
+        d = SeedOptionsDialog(self.ext, callback)
+        d.open()
 
     def get_suggestions(self, prefix):
         for w in self.words:
@@ -571,13 +590,16 @@ class RestoreSeedDialog(WizardDialog):
         enable_space = False
         self.ids.suggestions.clear_widgets()
         suggestions = [x for x in self.get_suggestions(last_word)]
+
+        if last_word in suggestions:
+            b = WordButton(text=last_word)
+            self.ids.suggestions.add_widget(b)
+            enable_space = True
+
         for w in suggestions:
-            if w == last_word:
-                enable_space = True
-            else:
-                if len(suggestions) < 10:
-                    b = WordButton(text=w)
-                    self.ids.suggestions.add_widget(b)
+            if w != last_word and len(suggestions) < 10:
+                b = WordButton(text=w)
+                self.ids.suggestions.add_widget(b)
 
         i = len(last_word)
         p = set()
@@ -643,12 +665,14 @@ class RestoreSeedDialog(WizardDialog):
             tis.focus = False
 
     def get_params(self, b):
-        return (self.get_text(), False, True)
+        return (self.get_text(), False, self.ext)
 
 
 class ConfirmSeedDialog(RestoreSeedDialog):
     def get_params(self, b):
         return (self.get_text(),)
+    def options_dialog(self):
+        pass
 
 
 class ShowXpubDialog(WizardDialog):

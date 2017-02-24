@@ -854,6 +854,43 @@ class Abstract_Wallet(PrintError):
         self.sign_transaction(tx, password)
         return tx
 
+    def sweep(self, privkeys, network, config, recipient, fee=None, imax=100):
+        inputs = []
+        keypairs = {}
+        for privkey in privkeys:
+            pubkey = public_key_from_private_key(privkey)
+            address = address_from_private_key(privkey)
+            u = network.synchronous_get(('blockchain.address.listunspent', [address]))
+            pay_script = Transaction.pay_script(TYPE_ADDRESS, address)
+            for item in u:
+                if len(inputs) >= imax:
+                    break
+                item['scriptPubKey'] = pay_script
+                item['redeemPubkey'] = pubkey
+                item['address'] = address
+                item['prevout_hash'] = item['tx_hash']
+                item['prevout_n'] = item['tx_pos']
+                item['pubkeys'] = [pubkey]
+                item['x_pubkeys'] = [pubkey]
+                item['signatures'] = [None]
+                item['num_sig'] = 1
+                inputs.append(item)
+            keypairs[pubkey] = privkey
+
+        if not inputs:
+            return
+
+        total = sum(i.get('value') for i in inputs)
+        if fee is None:
+            outputs = [(TYPE_ADDRESS, recipient, total)]
+            tx = Transaction.from_io(inputs, outputs)
+            fee = self.estimate_fee(config, tx.estimated_size())
+
+        outputs = [(TYPE_ADDRESS, recipient, total - fee)]
+        tx = Transaction.from_io(inputs, outputs)
+        tx.sign(keypairs)
+        return tx
+
     def is_frozen(self, addr):
         return addr in self.frozen_addresses
 
@@ -1034,6 +1071,27 @@ class Abstract_Wallet(PrintError):
         if addrs:
             return addrs[0]
 
+    def get_payment_status(self, address, amount):
+        local_height = self.get_local_height()
+        received, sent = self.get_addr_io(address)
+        l = []
+        for txo, x in received.items():
+            h, v, is_cb = x
+            txid, n = txo.split(':')
+            info = self.verified_tx.get(txid)
+            if info:
+                tx_height, timestamp, pos = info
+                conf = local_height - tx_height
+            else:
+                conf = 0
+            l.append((conf, v))
+        vsum = 0
+        for conf, v in reversed(sorted(l)):
+            vsum += v
+            if vsum >= amount:
+                return True, conf
+        return False, None
+
     def get_payment_request(self, addr, config):
         import util
         r = self.receive_requests.get(addr)
@@ -1041,7 +1099,10 @@ class Abstract_Wallet(PrintError):
             return
         out = copy.copy(r)
         out['URI'] = 'faircoin:' + addr + '?amount=' + util.format_satoshis(out.get('amount'))
-        out['status'] = self.get_request_status(addr)
+        status, conf = self.get_request_status(addr)
+        out['status'] = status
+        if conf is not None:
+            out['confirmations'] = conf
         # check if bip70 file exists
         rdir = config.get('requests_dir')
         if rdir:
@@ -1080,9 +1141,10 @@ class Abstract_Wallet(PrintError):
         expiration = r.get('exp')
         if expiration and type(expiration) != int:
             expiration = 0
+        conf = None
         if amount:
             if self.up_to_date:
-                paid = amount <= self.get_addr_received(address)
+                paid, conf = self.get_payment_status(address, amount)
                 status = PR_PAID if paid else PR_UNPAID
                 if status == PR_UNPAID and expiration is not None and time.time() > timestamp + expiration:
                     status = PR_EXPIRED
@@ -1090,7 +1152,7 @@ class Abstract_Wallet(PrintError):
                 status = PR_UNKNOWN
         else:
             status = PR_UNKNOWN
-        return status
+        return status, conf
 
     def make_payment_request(self, addr, amount, message, expiration):
         timestamp = int(time.time())

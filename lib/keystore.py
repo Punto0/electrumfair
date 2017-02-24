@@ -150,6 +150,7 @@ class Imported_KeyStore(Software_KeyStore):
         if pubkey in self.keypairs:
             raise BaseException('Private key already in keystore')
         self.keypairs[pubkey] = sec
+        self.receiving_pubkeys = self.keypairs.keys()
         return pubkey
 
     def delete_imported_key(self, key):
@@ -214,7 +215,10 @@ class Deterministic_KeyStore(Software_KeyStore):
         return d
 
     def has_seed(self):
-        return self.seed != ''
+        return bool(self.seed)
+
+    def is_watching_only(self):
+        return not self.has_seed()
 
     def can_change_password(self):
         return not self.is_watching_only()
@@ -225,10 +229,10 @@ class Deterministic_KeyStore(Software_KeyStore):
         self.seed = self.format_seed(seed)
 
     def get_seed(self, password):
-        return pw_decode(self.seed, password).encode('utf8')
+        return pw_decode(self.seed, password)
 
     def get_passphrase(self, password):
-        return pw_decode(self.passphrase, password).encode('utf8') if self.passphrase else ''
+        return pw_decode(self.passphrase, password) if self.passphrase else ''
 
 
 
@@ -377,7 +381,7 @@ class Old_KeyStore(Deterministic_KeyStore):
         if seed:
             try:
                 seed.decode('hex')
-                return OLD_SEED_VERSION, str(seed)
+                return str(seed)
             except Exception:
                 pass
         words = seed.split()

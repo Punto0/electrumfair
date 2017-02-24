@@ -1,3 +1,22 @@
+# Release 2.7.5
+ * Add number of confirmations to request status. (issue #1757)
+ * In the GUI, refer to passphrase as 'seed extension'.
+ * Fix bug with utf8 encoded passphrases.
+ * Kivy wizard: add a dialog for seed options.
+ * Kivy wizard: add current word to suggestions, because some users
+   don't see the space key.
+
+# Release 2.7.4
+ * Fix private key import in wizard
+ * Fix Ledger display (issue #1961)
+ * Fix old watching-only wallets (issue #1959)
+ * Fix Android compatibility (issue #1947)
+
+# Release 2.7.3
+ * fix Trezor and Keepkey support in Windows builds
+ * fix sweep private key dialog
+ * minor fixes: #1958, #1959
+
 # Release 2.7.2
  * fix bug in password update (issue #1954)
  * fix fee slider (issue #1953)
