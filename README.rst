@@ -75,7 +75,6 @@ Create translations (optional)::
 
 
 
-<<<<<<< HEAD
 Install on Linux systems
 ========================
 
@@ -94,8 +93,6 @@ If you don't have pip, install with::
     sudo python setup.py install
 
 
-=======
->>>>>>> electrum-2.7.10
 
 Creating Binaries
 =================
