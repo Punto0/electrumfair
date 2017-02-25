@@ -1,3 +1,18 @@
+# Release 2.7.15
+  * Use fee slider for both static and dynamic fees.
+  * Add fee slider to RBF dialog (fix #2083).
+  * Simplify fee preferences.
+  * Critical: Fix password update issue (#2097). This bug prevents
+    password updates in multisig and 2FA wallets. It may also cause
+    wallet corruption if the wallet contains several master private
+    keys (such as 2FA wallets that have been restored from
+    seed). Affected wallets will need to be restored again.
+
+# Release 2.7.14
+  * Merge exchange_rate plugin with main code
+  * Faster synchronization and transaction creation
+  * Fix bugs #2096, #2016
+
 # Release 2.7.13
   * fix message signing with imported keys
   * add size to transaction details window
