@@ -31,7 +31,7 @@ import time
 import jsonrpclib
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer, SimpleJSONRPCRequestHandler
 
-from version import ELECTRUM_VERSION
+from version import ELECTRUMFAIR_VERSION
 from network import Network
 from util import json_decode, DaemonThread
 from util import print_msg, print_error, print_stderr
