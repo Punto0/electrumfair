@@ -403,8 +403,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.import_privkey_menu = self.private_keys_menu.addAction(_("&Import"), self.do_import_privkey)
         self.export_menu = self.private_keys_menu.addAction(_("&Export"), self.export_privkeys_dialog)
         self.import_address_menu = wallet_menu.addAction(_("Import addresses"), self.import_addresses)
-        wallet_menu.addAction(_("&Export History"), self.export_history_dialog)
-        wallet_menu.addAction(_("Search"), self.toggle_search).setShortcut(QKeySequence("Ctrl+S"))
+
+        hist_menu = wallet_menu.addMenu(_("&History"))
+        hist_menu.addAction("Plot", self.plot_history_dialog)
+        hist_menu.addAction("Export", self.export_history_dialog)
+
+        wallet_menu.addAction(_("Find"), self.toggle_search).setShortcut(QKeySequence("Ctrl+F"))
         wallet_menu.addAction(_("Addresses"), self.toggle_addresses_tab).setShortcut(QKeySequence("Ctrl+A"))
 
         tools_menu = menubar.addMenu(_("&Tools"))
@@ -992,27 +996,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         vbox.addWidget(self.invoices_label)
         vbox.addWidget(self.invoice_list)
         vbox.setStretchFactor(self.invoice_list, 1000)
-
         # Defer this until grid is parented to avoid ugly flash during startup
         self.update_fee_edit()
-
         run_hook('create_send_tab', grid)
         return w
 
-
     def spend_max(self):
-        inputs = self.get_coins()
-        sendable = sum(map(lambda x:x['value'], inputs))
-        fee = self.fee_e.get_amount() if self.fee_e.isModified() else None
-        r = self.get_payto_or_dummy()
-        amount, fee = self.wallet.get_max_amount(self.config, inputs, r, fee)
-        if not self.fee_e.isModified():
-            self.fee_e.setAmount(fee)
-        self.amount_e.setAmount(amount)
-        self.not_enough_funds = (fee + amount > sendable)
-        # emit signal for fiat_amount update
-        self.amount_e.textEdited.emit("")
         self.is_max = True
+        self.do_update_fee()
 
     def reset_max(self):
         self.is_max = False
@@ -1032,14 +1023,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         '''
         freeze_fee = (self.fee_e.isModified()
                       and (self.fee_e.text() or self.fee_e.hasFocus()))
-        amount = self.amount_e.get_amount()
+        amount = '!' if self.is_max else self.amount_e.get_amount()
         if amount is None:
             if not freeze_fee:
                 self.fee_e.setAmount(None)
             self.not_enough_funds = False
         else:
             fee = self.fee_e.get_amount() if freeze_fee else None
-            outputs = self.payto_e.get_outputs()
+            outputs = self.payto_e.get_outputs(self.is_max)
             if not outputs:
                 _type, addr = self.get_payto_or_dummy()
                 outputs = [(_type, addr, amount)]
@@ -1051,6 +1042,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             if not freeze_fee:
                 fee = None if self.not_enough_funds else self.wallet.get_tx_fee(tx)
                 self.fee_e.setAmount(fee)
+
+            if self.is_max:
+                amount = tx.output_value()
+                self.amount_e.setAmount(amount)
+
 
     def update_fee_edit(self):
         # b = self.config.get('dynamic_fees', True)
@@ -1130,7 +1126,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             if errors:
                 self.show_warning(_("Invalid Lines found:") + "\n\n" + '\n'.join([ _("Line #") + str(x[0]+1) + ": " + x[1] for x in errors]))
                 return
-            outputs = self.payto_e.get_outputs()
+            outputs = self.payto_e.get_outputs(self.is_max)
 
             if self.payto_e.is_alias and self.payto_e.validated is False:
                 alias = self.payto_e.toPlainText()
@@ -1172,7 +1168,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         if not r:
             return
         outputs, fee, tx_desc, coins = r
-        amount = sum(map(lambda x:x[2], outputs))
         try:
             tx = self.wallet.make_unsigned_transaction(coins, outputs, self.config, fee)
         except NotEnoughFunds:
@@ -1182,6 +1177,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             traceback.print_exc(file=sys.stdout)
             self.show_message(str(e))
             return
+
+        amount = tx.output_value() if self.is_max else sum(map(lambda x:x[2], outputs))
 
         use_rbf = self.rbf_checkbox.isChecked()
         if use_rbf:
@@ -1756,20 +1753,35 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
     @protected
     def do_sign(self, address, message, signature, password):
-        message = unicode(message.toPlainText()).encode('utf-8')
-        task = partial(self.wallet.sign_message, str(address.text()),
-                       message, password)
+        address  = str(address.text()).strip()
+        message = unicode(message.toPlainText()).encode('utf-8').strip()
+        if not bitcoin.is_address(address):
+            self.show_message('Invalid Bitcoin address.')
+            return
+        if not bitcoin.is_p2pkh(address):
+            self.show_message('Cannot sign messages with this type of address.')
+            return
+        if not self.wallet.is_mine(address):
+            self.show_message('Address not in wallet.')
+            return
+        task = partial(self.wallet.sign_message, address, message, password)
         def show_signed_message(sig):
             signature.setText(base64.b64encode(sig))
         self.wallet.thread.add(task, on_success=show_signed_message)
 
     def do_verify(self, address, message, signature):
-        message = unicode(message.toPlainText())
-        message = message.encode('utf-8')
+        address  = str(address.text()).strip()
+        message = unicode(message.toPlainText()).encode('utf-8').strip()
+        if not bitcoin.is_address(address):
+            self.show_message('Invalid Bitcoin address.')
+            return
+        if not bitcoin.is_p2pkh(address):
+            self.show_message('Cannot verify messages with this type of address.')
+            return
         try:
             # This can throw on invalid base64
             sig = base64.b64decode(str(signature.toPlainText()))
-            verified = bitcoin.verify_message(address.text(), sig, message)
+            verified = bitcoin.verify_message(address, sig, message)
         except:
             verified = False
         if verified:
@@ -1846,8 +1858,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         pubkey_e = QLineEdit()
         if address:
-            sequence = self.wallet.get_address_index(address)
-            pubkey = self.wallet.get_pubkey(*sequence)
+            pubkey = self.wallet.get_public_key(address)
             pubkey_e.setText(pubkey)
         layout.addWidget(QLabel(_('Public key')), 2, 0)
         layout.addWidget(pubkey_e, 2, 1)
@@ -2101,6 +2112,18 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.show_critical(export_error_label + "\n" + str(reason), title=_("Unable to export history"))
             return
         self.show_message(_("Your wallet history has been successfully exported."))
+
+    def plot_history_dialog(self):
+        try:
+            from electrum.plot import plot_history
+        except ImportError as e:
+            self.show_error(str(e))
+            return
+        wallet = self.wallet
+        history = wallet.get_history()
+        if len(history) > 0:
+            plt = plot_history(self.wallet, history)
+            plt.show()
 
 
     def do_export_history(self, wallet, fileName, is_csv):

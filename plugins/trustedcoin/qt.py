@@ -55,7 +55,7 @@ class Plugin(TrustedCoinPlugin):
             action = lambda: window.show_message(msg)
         else:
             action = partial(self.settings_dialog, window)
-        button = StatusBarButton(QIcon(":icons/trustedcoin.png"),
+        button = StatusBarButton(QIcon(":icons/trustedcoin-status.png"),
                                  _("TrustedCoin"), action)
         window.statusBar().addPermanentWidget(button)
         t = Thread(target=self.request_billing_info, args=(wallet,))
@@ -127,7 +127,7 @@ class Plugin(TrustedCoinPlugin):
         hbox = QHBoxLayout()
 
         logo = QLabel()
-        logo.setPixmap(QPixmap(":icons/trustedcoin.png"))
+        logo.setPixmap(QPixmap(":icons/trustedcoin-status.png"))
         msg = _('This wallet is protected by TrustedCoin\'s two-factor authentication.') + '<br/>'\
               + _("For more information, visit") + " <a href=\"https://api.trustedcoin.com/#/electrum-help\">https://api.trustedcoin.com/#/electrum-help</a>"
         label = QLabel(msg)
@@ -157,9 +157,6 @@ class Plugin(TrustedCoinPlugin):
         grid.addWidget(QLabel(window.format_amount(v) + ' ' + window.base_unit()), 0, 1)
 
         i = 1
-
-        if 10 not in price_per_tx:
-            price_per_tx[10] = 10 * price_per_tx.get(1)
 
         for k, v in sorted(price_per_tx.items()):
             if k == 1:

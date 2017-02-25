@@ -46,6 +46,7 @@ setup(
         'jsonrpclib',
     ],
     packages=[
+<<<<<<< HEAD
         'electrumfair',
         'electrumfair_gui',
         'electrumfair_gui.qt',
@@ -63,6 +64,24 @@ setup(
         'electrumfair_plugins.trezor',
         'electrumfair_plugins.trustedcoin',
         'electrumfair_plugins.virtualkeyboard',
+=======
+        'electrum',
+        'electrum_gui',
+        'electrum_gui.qt',
+        'electrum_plugins',
+        'electrum_plugins.audio_modem',
+        'electrum_plugins.cosigner_pool',
+        'electrum_plugins.email_requests',
+        'electrum_plugins.exchange_rate',
+        'electrum_plugins.greenaddress_instant',
+        'electrum_plugins.hw_wallet',
+        'electrum_plugins.keepkey',
+        'electrum_plugins.labels',
+        'electrum_plugins.ledger',
+        'electrum_plugins.trezor',
+        'electrum_plugins.trustedcoin',
+        'electrum_plugins.virtualkeyboard',
+>>>>>>> electrum-2.7.13
     ],
     package_dir={
         'electrumfair': 'lib',

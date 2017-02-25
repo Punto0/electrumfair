@@ -264,9 +264,14 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
 
     @wizard_dialog
     def restore_seed_dialog(self, run_next, test):
+        options = []
+        if self.opt_ext:
+            options.append('ext')
+        if self.opt_bip39:
+            options.append('bip39')
         title = _('Enter Seed')
         message = _('Please enter your seed phrase in order to restore your wallet.')
-        return self.seed_input(title, message, test, ['ext', 'bip39'])
+        return self.seed_input(title, message, test, options)
 
     @wizard_dialog
     def confirm_seed_dialog(self, run_next, test):
@@ -396,6 +401,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         choices = [_("Auto connect"), _("Select server manually")]
         title = _("How do you want to connect to a server? ")
         clayout = ChoicesLayout(message, choices)
+        self.back_button.setText(_('Cancel'))
         self.set_main_layout(clayout.layout(), title)
         r = clayout.selected_index()
         if r == 0:
