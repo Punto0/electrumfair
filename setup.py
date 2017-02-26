@@ -88,7 +88,12 @@ setup(
         'electrumfair_plugins': 'plugins',
     },
     package_data={
+<<<<<<< HEAD
         'electrumfair': [
+=======
+        'electrum': [
+            'currencies.json',
+>>>>>>> electrm-2.7.18
             'www/index.html',
             'wordlist/*.txt',
             'locale/*/LC_MESSAGES/electrum.mo',

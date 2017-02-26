@@ -183,7 +183,7 @@ class Network(util.DaemonThread):
         self.lock = Lock()
         self.pending_sends = []
         self.message_id = 0
-        self.debug = True
+        self.debug = False
         self.irc_servers = {} # returned by interface (list from irc)
         self.recent_servers = self.read_recent_servers()
 

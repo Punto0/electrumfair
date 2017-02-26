@@ -455,7 +455,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         wallet_menu.addAction(_("Find"), self.toggle_search).setShortcut(QKeySequence("Ctrl+F"))
         wallet_menu.addAction(_("Addresses"), self.toggle_addresses_tab).setShortcut(QKeySequence("Ctrl+A"))
-        wallet_menu.addAction(_("Coins"), self.toggle_utxo_tab).setShortcut(QKeySequence("Ctrl+C"))
+        wallet_menu.addAction(_("Coins"), self.toggle_utxo_tab)
 
         tools_menu = menubar.addMenu(_("&Tools"))
 
@@ -1480,6 +1480,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
     def set_frozen_state(self, addrs, freeze):
         self.wallet.set_frozen_state(addrs, freeze)
         self.address_list.update()
+        self.utxo_list.update()
         self.update_fee()
 
     def create_list_tab(self, l):
@@ -2579,7 +2580,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         ex_combo = QComboBox()
 
         def update_currencies():
-            currencies = sorted(self.fx.exchanges_by_ccy.keys())
+            currencies = sorted(self.fx.get_currencies(self.fx.get_history_config()))
             ccy_combo.clear()
             ccy_combo.addItems([_('None')] + currencies)
             if self.fx.is_enabled():
@@ -2597,7 +2598,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                 c = self.fx.get_currency()
                 exchanges = self.fx.get_exchanges_by_ccy(c, h)
             else:
-                exchanges = self.fx.exchanges.keys()
+                exchanges = self.fx.get_exchanges_by_ccy('USD', False)
             ex_combo.clear()
             ex_combo.addItems(sorted(exchanges))
             ex_combo.setCurrentIndex(ex_combo.findText(self.fx.config_exchange()))
@@ -2614,11 +2615,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         def on_exchange(idx):
             exchange = str(ex_combo.currentText())
-            if self.fx.is_enabled() and exchange != self.fx.exchange.name():
+            if self.fx.is_enabled() and exchange and exchange != self.fx.exchange.name():
                 self.fx.set_exchange(exchange)
 
         def on_history(checked):
             self.fx.set_history_config(checked)
+            update_exchanges()
             self.history_list.refresh_headers()
             if self.fx.is_enabled() and checked:
                 # reset timeout to get historical rates
