@@ -532,7 +532,10 @@ class Abstract_Wallet(PrintError):
                     u -= v
         return c, u, x
 
-    def get_spendable_coins(self, domain = None, exclude_frozen = True):
+    def get_spendable_coins(self, domain = None):
+        return self.get_utxos(domain, exclude_frozen=True, mature=True)
+
+    def get_utxos(self, domain = None, exclude_frozen = False, mature = False):
         coins = []
         if domain is None:
             domain = self.get_addresses()
@@ -541,7 +544,7 @@ class Abstract_Wallet(PrintError):
         for addr in domain:
             utxos = self.get_addr_utxo(addr)
             for x in utxos:
-                if x['coinbase'] and x['height'] + COINBASE_MATURITY > self.get_local_height():
+                if mature and x['coinbase'] and x['height'] + COINBASE_MATURITY > self.get_local_height():
                     continue
                 coins.append(x)
                 continue
@@ -751,16 +754,6 @@ class Abstract_Wallet(PrintError):
             return ', '.join(labels)
         return ''
 
-    def fee_per_kb(self, config):
-        b = config.get('dynamic_fees', True)
-        i = config.get('fee_level', 2)
-        if b and self.network and self.network.dynfee(i):
-            return self.network.dynfee(i)
-        else:
-            fee_per_kb = config.get('fee_per_kb', RECOMMENDED_FEE)
-            coeff = {0:0.3, 1:0.5, 2:1, 3:1.5, 4:2}
-            return fee_per_kb * coeff[i]
-
     def get_tx_status(self, tx_hash, height, conf, timestamp):
         from util import format_time
         if conf == 0:
@@ -769,9 +762,9 @@ class Abstract_Wallet(PrintError):
                 return 3, 'unknown'
             is_final = tx and tx.is_final()
             fee = self.tx_fees.get(tx_hash)
-            if fee and self.network and self.network.dynfee(0):
+            if fee and self.network and self.network.config.has_fee_estimates():
                 size = len(tx.raw)/2
-                low_fee = int(self.network.dynfee(0)*size/1000)
+                low_fee = int(self.network.config.dynfee(0)*size/1000)
                 is_lowfee = fee < low_fee * 0.5
             else:
                 is_lowfee = False
@@ -802,6 +795,7 @@ class Abstract_Wallet(PrintError):
         return 182 * 3 * self.relayfee() / 1000
 
     def get_tx_fee(self, tx):
+        # type: (object) -> object
         # this method can be overloaded
         return tx.get_fee()
 
@@ -870,7 +864,7 @@ class Abstract_Wallet(PrintError):
         return tx
 
     def estimate_fee(self, config, size):
-        fee = int(self.fee_per_kb(config) * size / 1000.)
+        fee = int(config.fee_per_kb() * size / 1000.)
         return fee
 
     def mktx(self, outputs, password, config, fee=None, change_addr=None, domain=None):
@@ -1126,7 +1120,7 @@ class Abstract_Wallet(PrintError):
         domain = self.get_receiving_addresses()
         choice = domain[0]
         for addr in domain:
-            if addr not in self.history.keys():
+            if not self.history.get(addr):
                 if addr not in self.receive_requests.keys():
                     return addr
                 else:
@@ -1633,7 +1627,7 @@ class Multisig_Wallet(Deterministic_Wallet):
 
     def pubkeys_to_address(self, pubkeys):
         redeem_script = Transaction.multisig_script(sorted(pubkeys), self.m)
-        address = hash_160_to_bc_address(hash_160(redeem_script.decode('hex')), 5)
+        address = hash_160_to_bc_address(hash_160(redeem_script.decode('hex')), bitcoin.ADDRTYPE_P2SH)
         return address
 
     def new_pubkeys(self, c, i):

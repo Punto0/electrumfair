@@ -59,7 +59,7 @@ from network_dialog import NetworkDialog
 from qrcodewidget import QRCodeWidget, QRDialog
 from qrtextedit import ShowQRTextEdit
 from transaction_dialog import show_transaction
-
+from fee_slider import FeeSlider
 
 
 from electrum import ELECTRUMFAIR_VERSION
@@ -129,6 +129,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.addresses_tab = self.create_addresses_tab()
         if self.config.get('show_addresses_tab', False):
             tabs.addTab(self.addresses_tab, _('Addresses'))
+        self.utxo_tab = self.create_utxo_tab()
+        if self.config.get('show_utxo_tab', False):
+            tabs.addTab(self.utxo_tab, _('Coins'))
         tabs.addTab(self.create_contacts_tab(), _('Contacts') )
         tabs.addTab(self.create_console_tab(), _('Console') )
         tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -158,7 +161,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         if self.network:
             self.connect(self, QtCore.SIGNAL('network'), self.on_network_qt)
             interests = ['updated', 'new_transaction', 'status',
-                         'banner', 'verified']
+                         'banner', 'verified', 'fee']
             # To avoid leaking references to "self" that prevent the
             # window from being GC-ed when closed, callbacks should be
             # methods of this class only, and specifically not be
@@ -166,12 +169,13 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.network.register_callback(self.on_network, interests)
             # set initial message
             self.console.showMessage(self.network.banner)
-
             self.network.register_callback(self.on_quotes, ['on_quotes'])
             self.network.register_callback(self.on_history, ['on_history'])
             self.connect(self, SIGNAL('new_fx_quotes'), self.on_fx_quotes)
             self.connect(self, SIGNAL('new_fx_history'), self.on_fx_history)
 
+        # update fee slider in case we missed the callback
+        self.fee_slider.update()
         self.load_wallet(wallet)
         self.connect_slots(gui_object.timer)
         self.config.set_key('dynamic_fees', True)
@@ -199,12 +203,21 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.history_list.update()
 
     def toggle_addresses_tab(self):
-        show_addr = not self.config.get('show_addresses_tab', False)
-        self.config.set_key('show_addresses_tab', show_addr)
-        if show_addr:
+        show = not self.config.get('show_addresses_tab', False)
+        self.config.set_key('show_addresses_tab', show)
+        if show:
             self.tabs.insertTab(3, self.addresses_tab, _('Addresses'))
         else:
             i = self.tabs.indexOf(self.addresses_tab)
+            self.tabs.removeTab(i)
+
+    def toggle_utxo_tab(self):
+        show = not self.config.get('show_utxo_tab', False)
+        self.config.set_key('show_utxo_tab', show)
+        if show:
+            self.tabs.insertTab(3, self.utxo_tab, _('Coins'))
+        else:
+            i = self.tabs.indexOf(self.utxo_tab)
             self.tabs.removeTab(i)
 
     def push_top_level_window(self, window):
@@ -248,7 +261,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.need_update.set()
         elif event == 'new_transaction':
             self.tx_notifications.append(args[0])
-        elif event in ['status', 'banner', 'verified']:
+        elif event in ['status', 'banner', 'verified', 'fee']:
             # Handle in GUI thread
             self.emit(QtCore.SIGNAL('network'), event, *args)
         else:
@@ -262,6 +275,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.console.showMessage(args[0])
         elif event == 'verified':
             self.history_list.update_item(*args)
+        elif event == 'fee':
+            if self.config.is_dynfee():
+                self.fee_slider.update()
         else:
             self.print_error("unexpected network_qt signal:", event, args)
 
@@ -288,6 +304,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.update_recently_visited(wallet.storage.path)
         # address used to create a dummy transaction and estimate transaction fee
         self.history_list.update()
+        self.address_list.update()
+        self.utxo_list.update()
         self.need_update.set()
         # Once GUI has been initialized check if we want to announce something since the callback has been called before the GUI was initialized
         self.notify_transactions()
@@ -437,6 +455,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         wallet_menu.addAction(_("Find"), self.toggle_search).setShortcut(QKeySequence("Ctrl+F"))
         wallet_menu.addAction(_("Addresses"), self.toggle_addresses_tab).setShortcut(QKeySequence("Ctrl+A"))
+        wallet_menu.addAction(_("Coins"), self.toggle_utxo_tab).setShortcut(QKeySequence("Ctrl+C"))
 
         tools_menu = menubar.addMenu(_("&Tools"))
 
@@ -661,6 +680,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.history_list.update()
         self.request_list.update()
         self.address_list.update()
+        self.utxo_list.update()
         self.contact_list.update()
         self.invoice_list.update()
         self.update_completions()
@@ -707,12 +727,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.receive_amount_e.textChanged.connect(self.update_receive_qr)
 
         self.fiat_receive_e = AmountEdit(self.fx.get_currency)
+        if not self.fx.is_enabled():
+            self.fiat_receive_e.setVisible(False)
         grid.addWidget(self.fiat_receive_e, 2, 2, Qt.AlignLeft)
         self.connect_fields(self, self.receive_amount_e, self.fiat_receive_e, None)
 
         self.expires_combo = QComboBox()
         self.expires_combo.addItems(map(lambda x:x[0], expiration_values))
-        self.expires_combo.setCurrentIndex(1)
+        self.expires_combo.setCurrentIndex(3)
         self.expires_combo.setFixedWidth(self.receive_amount_e.width())
         msg = ' '.join([
             _('Expiration date of your request.'),
@@ -963,27 +985,37 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         grid.addWidget(self.amount_e, 4, 1)
 
         self.fiat_send_e = AmountEdit(self.fx.get_currency)
-        grid.addWidget(self.fiat_send_e, 4, 2, Qt.AlignLeft)
+        if not self.fx.is_enabled():
+            self.fiat_send_e.setVisible(False)
+        grid.addWidget(self.fiat_send_e, 4, 2)
         self.amount_e.frozen.connect(
             lambda: self.fiat_send_e.setFrozen(self.amount_e.isReadOnly()))
 
         self.max_button = EnterButton(_("Max"), self.spend_max)
-        #hbox = QHBoxLayout()
-        #hbox.addWidget(self.max_button)
-        #hbox.addStretch(1)
-        #grid.addLayout(hbox, 4, 3)
+        # self.max_button.setFixedWidth(140)
+        # grid.addWidget(self.max_button, 4, 3)
+        # hbox = QHBoxLayout()
+        # hbox.addStretch(1)
+        # grid.addLayout(hbox, 4, 4)
 
         msg = _('FairCoin transactions are in general not free. A transaction fee is paid by the sender of the funds.') + '\n\n'\
               + _('The amount of fee can be decided freely by the sender. However, transactions with low fees take more time to be processed.') + '\n\n'\
               + _('A suggested fee is automatically added to this field. You may override it. The suggested fee increases with the size of the transaction.')
         self.fee_e_label = HelpLabel(_('Fee'), msg)
 
-        fee_cb = lambda x: self.spend_max() if self.is_max else self.update_fee()
-        self.fee_slider = self.create_fee_slider(self, fee_cb)
-        self.fee_slider.setValue(self.config.get('fee_level', 2))
+        def fee_cb(dyn, pos, fee_rate):
+            if dyn:
+                self.config.set_key('fee_level', pos, False)
+            else:
+                self.config.set_key('fee_per_kb', fee_rate, False)
+            self.spend_max() if self.is_max else self.update_fee()
+
+        self.fee_slider = FeeSlider(self, self.config, fee_cb)
+        self.fee_slider.setFixedWidth(140)
 
         self.fee_e = BTCAmountEdit(self.get_decimal_point)
-        self.fee_e.setVisible(self.config.get('show_fee', False))
+        if not self.config.get('show_fee', False):
+            self.fee_e.setVisible(False)
         self.fee_e.textEdited.connect(self.update_fee)
         # This is so that when the user blanks the fee and moves on,
         # we go back to auto-calculate mode and put a fee back.
@@ -997,8 +1029,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.rbf_checkbox.setToolTip('<p>' + ' '.join(msg) + '</p>')
         self.rbf_checkbox.setVisible(self.config.get('use_rbf', False))
 
-        grid.addWidget(self.fee_e_label, 5, 0)
-        grid.addWidget(self.fee_slider, 5, 1)
+        # grid.addWidget(self.fee_e_label, 5, 0)
+        # grid.addWidget(self.fee_slider, 5, 1) # Not needed in FC2 but still working in background updating the fee
         grid.addWidget(self.fee_e, 5, 2)
         grid.addWidget(self.rbf_checkbox, 5, 3)
 
@@ -1012,7 +1044,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         buttons.addWidget(self.preview_button)
         buttons.addWidget(self.max_button)
         buttons.addWidget(self.send_button)
-        grid.addLayout(buttons, 6, 1, 1, 2)
+        grid.addLayout(buttons, 6, 1, 1, 3)
 
         self.amount_e.shortcut.connect(self.spend_max)
         self.payto_e.textChanged.connect(self.update_fee)
@@ -1057,7 +1089,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         vbox.addWidget(self.invoices_label)
         vbox.addWidget(self.invoice_list)
         vbox.setStretchFactor(self.invoice_list, 1000)
-        # Defer this until grid is parented to avoid ugly flash during startup
         run_hook('create_send_tab', grid)
         return w
 
@@ -1120,8 +1151,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         menu.addAction(_("Remove"), lambda: self.from_list_delete(item))
         menu.exec_(self.from_list.viewport().mapToGlobal(position))
 
-    def set_pay_from(self, domain = None):
-        self.pay_from = [] if domain == [] else self.wallet.get_spendable_coins(domain)
+    def set_pay_from(self, coins):
+        self.pay_from = coins
         self.redraw_from_list()
 
     def redraw_from_list(self):
@@ -1131,7 +1162,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         def format(x):
             h = x.get('prevout_hash')
-            return h[0:8] + '...' + h[-8:] + ":%d"%x.get('prevout_n') + u'\t' + "%s"%x.get('address')
+            return h[0:10] + '...' + h[-10:] + ":%d"%x.get('prevout_n') + u'\t' + "%s"%x.get('address')
 
         for item in self.pay_from:
             self.from_list.addTopLevelItem(QTreeWidgetItem( [format(item), self.format_amount(item['value']) ]))
@@ -1258,9 +1289,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         if extra_fee:
             msg.append( _("Additional fees") + ": " + self.format_amount_and_units(extra_fee) )
 
-        # confirm_rate = self.config.get('confirm_fee', 200000)
-        #if tx.get_fee() > confirm_rate * tx.estimated_size() / 1000:
-        #    msg.append(_('Warning')+ ': ' + _("The fee for this transaction seems unusually high."))
+        confirm_rate = 2 * self.config.max_fee_rate()
+        if tx.get_fee() > confirm_rate * tx.estimated_size() / 1000:
+            msg.append(_('Warning') + ': ' + _("The fee for this transaction seems unusually high."))
 
         if self.wallet.has_password():
             msg.append("")
@@ -1467,6 +1498,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.address_list = l = AddressList(self)
         return self.create_list_tab(l)
 
+    def create_utxo_tab(self):
+        from utxo_list import UTXOList
+        self.utxo_list = l = UTXOList(self)
+        return self.create_list_tab(l)
+
     def create_contacts_tab(self):
         from contact_list import ContactList
         self.contact_list = l = ContactList(self)
@@ -1478,13 +1514,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.address_list.update()
             self.history_list.update()
 
-    def edit_account_label(self, k):
-        text, ok = QInputDialog.getText(self, _('Rename account'), _('Name') + ':', text = self.wallet.labels.get(k,''))
-        if ok:
-            label = unicode(text)
-            self.wallet.set_label(k,label)
-            self.address_list.update()
-
     def get_coins(self):
         if self.pay_from:
             return self.pay_from
@@ -1492,9 +1521,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             domain = self.wallet.get_addresses()
             return self.wallet.get_spendable_coins(domain)
 
-
-    def send_from_addresses(self, addrs):
-        self.set_pay_from(addrs)
+    def spend_coins(self, coins):
+        self.set_pay_from(coins)
         self.tabs.setCurrentIndex(1)
         self.update_fee()
 
@@ -2356,28 +2384,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         nz.valueChanged.connect(on_nz)
         gui_widgets.append((nz_label, nz))
 
-        dynfee_cb = QCheckBox(_('Use static fees'))
-        dynfee_cb.setChecked(not self.config.get('dynamic_fees', True))
-        dynfee_cb.setToolTip(_("Do not use fees recommended by the server."))
-        fee_e = BTCkBEdit(self.get_decimal_point)
-        def on_fee(is_done):
-            if self.config.get('dynamic_fees', True):
-                return
-            v = fee_e.get_amount() or 0
-            self.config.set_key('fee_per_kb', v, is_done)
-            self.update_fee()
-        def update_feeperkb():
-            fee_e.setAmount(self.config.get('fee_per_kb', bitcoin.RECOMMENDED_FEE))
-            b = self.config.get('dynamic_fees', True)
-            fee_e.setEnabled(not b)
+        dynfee_cb = QCheckBox(_('Use dynamic fees'))
+        dynfee_cb.setChecked(self.config.get('dynamic_fees', True))
+        dynfee_cb.setToolTip(_("Use fees recommended by the server."))
         def on_dynfee(x):
-            self.config.set_key('dynamic_fees', x != Qt.Checked)
-            update_feeperkb()
-        fee_e.editingFinished.connect(lambda: on_fee(True))
-        fee_e.textEdited.connect(lambda: on_fee(False))
+            self.config.set_key('dynamic_fees', x == Qt.Checked)
+            self.fee_slider.update()
         dynfee_cb.stateChanged.connect(on_dynfee)
-        update_feeperkb()
-        fee_widgets.append((dynfee_cb, fee_e))
+        fee_widgets.append((dynfee_cb, None))
 
         feebox_cb = QCheckBox(_('Edit fees manually'))
         feebox_cb.setChecked(self.config.get('show_fee', False))
@@ -2462,7 +2476,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             unit_result = units[unit_combo.currentIndex()]
             if self.base_unit() == unit_result:
                 return
-            edits = self.amount_e, self.fee_e, self.receive_amount_e, fee_e
+            edits = self.amount_e, self.fee_e, self.receive_amount_e
             amounts = [edit.get_amount() for edit in edits]
             if unit_result == 'FAIR':
                 self.decimal_point = 8
@@ -2487,7 +2501,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         block_ex_label = HelpLabel(_('Online Block Explorer') + ':', msg)
         block_ex_combo = QComboBox()
         block_ex_combo.addItems(block_explorers)
-        block_ex_combo.setCurrentIndex(block_explorers.index(block_explorer(self.config)))
+        block_ex_combo.setCurrentIndex(block_ex_combo.findText(block_explorer(self.config)))
         def on_be(x):
             be_result = block_explorers[block_ex_combo.currentIndex()]
             self.config.set_key('block_explorer', be_result, True)
@@ -2623,7 +2637,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         fiat_widgets.append((QLabel(_('Source')), ex_combo))
 
         tabs_info = [
-            #(fee_widgets, _('Fees')),
+            # (fee_widgets, _('Fees')), # not needed in FC2
             (tx_widgets, _('Transactions')),
             (gui_widgets, _('Appearance')),
             (fiat_widgets, _('Fiat')),
@@ -2753,25 +2767,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         vbox.addLayout(Buttons(CloseButton(d)))
         d.exec_()
 
-    def create_fee_slider(self, parent, callback):
-        from electrum.util import fee_levels
-        from electrum.bitcoin import FEE_STEP, RECOMMENDED_FEE
-        fee_slider = QSlider(Qt.Horizontal, parent)
-        def slider_moved():
-            pos = fee_slider.sliderPosition()
-            self.config.set_key('fee_level', pos, False)
-            is_dyn = self.config.get('dynamic_fees') and self.network and self.network.dynfee(pos)
-            fee_rate = self.wallet.fee_per_kb(self.config)
-            tooltip = fee_levels[pos] + '\n' if is_dyn else ''
-            tooltip += self.format_amount(fee_rate) + ' ' + self.base_unit() + '/kB'
-            QToolTip.showText(QCursor.pos(), tooltip, self.fee_slider)
-            callback(fee_rate)
-
-        fee_slider.setRange(0, 4)
-        fee_slider.setToolTip('')
-        fee_slider.setValue(self.config.get('fee_level', 2))
-        fee_slider.valueChanged.connect(slider_moved)
-        return fee_slider
 
     def bump_fee_dialog(self, tx):
         is_relevant, is_mine, v, fee = self.wallet.get_wallet_delta(tx)
@@ -2785,12 +2780,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         fee_e.setAmount(fee * 1.5)
         vbox.addWidget(fee_e)
 
-        def on_rate(fee_rate):
+        def on_rate(dyn, pos, fee_rate):
             fee = fee_rate * tx_size / 1000
             fee_e.setAmount(fee)
-        fee_slider = self.create_fee_slider(d, on_rate)
-        vbox.addWidget(fee_slider)
-
+        fee_slider = FeeSlider(self, self.config, on_rate)
+        #vbox.addWidget(fee_slider)
         cb = QCheckBox(_('Final'))
         vbox.addWidget(cb)
         vbox.addLayout(Buttons(CancelButton(d), OkButton(d)))
