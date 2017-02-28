@@ -201,6 +201,7 @@ class SimpleConfig(PrintError):
         if i < 4:
             j = FEE_TARGETS[i]
             fee = self.fee_estimates.get(j)
+            print_error("fee_estimates.get")
         else:
             assert i == 4
             fee = self.fee_estimates.get(2)
@@ -239,7 +240,7 @@ def read_system_config(path=SYSTEM_CONFIG_PATH):
         try:
             import ConfigParser
         except ImportError:
-            print "cannot parse electrum.conf. please install ConfigParser"
+            print "cannot parse electrumfair.conf. please install ConfigParser"
             return
 
         p = ConfigParser.ConfigParser()

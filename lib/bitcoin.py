@@ -60,7 +60,7 @@ def set_testnet():
 
 FEE_STEP = 1000000
 MAX_FEE_RATE = 10000000
-FEE_TARGETS = [1]
+FEE_TARGETS = [100,25,10,2] # The length and the contents of the array are hardcoded in fee_slider.py and others, better not change it
 
 COINBASE_MATURITY = 100
 COIN = 100000000
