@@ -1,6 +1,6 @@
 import gettext
 
-class _(str):
+class _(unicode):
 
     observers = set()
     lang = None
@@ -15,7 +15,9 @@ class _(str):
 
     @staticmethod
     def translate(s, *args, **kwargs):
-        return _.lang(s).format(args, kwargs)
+        tr = _.lang(s).format(args, kwargs)
+        tr = tr.decode('utf8')
+        return tr
 
     @staticmethod
     def bind(label):
@@ -36,7 +38,7 @@ class _(str):
     def switch_lang(lang):
         # get the right locales directory, and instanciate a gettext
         from electrum.i18n import LOCALE_DIR
-        locales = gettext.translation('electrum', LOCALE_DIR, languages=[lang], fallback=True)
+        locales = gettext.translation('electrumfair', LOCALE_DIR, languages=[lang], fallback=True)
         _.lang = locales.gettext
         for label in _.observers:
             try:

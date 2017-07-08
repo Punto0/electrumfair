@@ -46,21 +46,21 @@ setup(
         'jsonrpclib',
     ],
     packages=[
-        'electrum',
-        'electrum_gui',
-        'electrum_gui.qt',
-        'electrum_plugins',
-        'electrum_plugins.audio_modem',
-        'electrum_plugins.cosigner_pool',
-        'electrum_plugins.email_requests',
-        'electrum_plugins.greenaddress_instant',
-        'electrum_plugins.hw_wallet',
-        'electrum_plugins.keepkey',
-        'electrum_plugins.labels',
-        'electrum_plugins.ledger',
-        'electrum_plugins.trezor',
-        'electrum_plugins.trustedcoin',
-        'electrum_plugins.virtualkeyboard',
+        'electrumfair',
+        'electrumfair_gui',
+        'electrumfair_gui.qt',
+        'electrumfair_plugins',
+        'electrumfair_plugins.audio_modem',
+        'electrumfair_plugins.cosigner_pool',
+        'electrumfair_plugins.email_requests',
+        'electrumfair_plugins.greenaddress_instant',
+        'electrumfair_plugins.hw_wallet',
+        'electrumfair_plugins.keepkey',
+        'electrumfair_plugins.labels',
+        'electrumfair_plugins.ledger',
+        'electrumfair_plugins.trezor',
+        'electrumfair_plugins.trustedcoin',
+        'electrumfair_plugins.virtualkeyboard',
     ],
     package_dir={
         'electrumfair': 'lib',
@@ -68,11 +68,11 @@ setup(
         'electrumfair_plugins': 'plugins',
     },
     package_data={
-        'electrum': [
+        'electrumfair': [
             'currencies.json',
             'www/index.html',
             'wordlist/*.txt',
-            'locale/*/LC_MESSAGES/electrum.mo',
+            'locale/*/LC_MESSAGES/electrum-fair.mo',
         ]
     },
     scripts=['electrumfair'],
@@ -82,5 +82,5 @@ setup(
     author_email="thomasv@electrum.org, tom@fair-coin.org",
     license="MIT Licence",
     url="https://electrum.fair-coin.org",
-    long_description="""Lightweight FariCoin Wallet"""
+    long_description="""Lightweight FairCoin Wallet"""
 )

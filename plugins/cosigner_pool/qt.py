@@ -44,7 +44,7 @@ import traceback
 
 
 PORT = 12344
-HOST = 'cosigner.electrum.org'
+HOST = 'cosigner-pool.faircoin.world'
 server = xmlrpclib.ServerProxy('http://%s:%d'%(HOST,PORT), allow_none=True)
 
 

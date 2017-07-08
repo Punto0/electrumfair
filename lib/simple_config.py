@@ -6,9 +6,9 @@ import os
 from copy import deepcopy
 from util import user_dir, print_error, print_msg, print_stderr, PrintError
 
-from bitcoin import MAX_FEE_RATE, FEE_TARGETS
+from bitcoin import MAX_FEE_RATE
 
-SYSTEM_CONFIG_PATH = "/etc/electrum.conf"
+SYSTEM_CONFIG_PATH = "/etc/electrumfair.conf"
 
 config = None
 
@@ -42,7 +42,7 @@ class SimpleConfig(PrintError):
         # a thread-safe way.
         self.lock = threading.RLock()
 
-        self.fee_estimates = {}
+        self.transaction_fee = 0.1 # let's have a reasonable start value
 
         # The following two functions are there for dependency injection when
         # testing.
@@ -198,48 +198,28 @@ class SimpleConfig(PrintError):
         return self.get('max_fee_rate', MAX_FEE_RATE)
 
     def dynfee(self, i):
-        if i < 4:
-            j = FEE_TARGETS[i]
-            fee = self.fee_estimates.get(j)
-        else:
-            assert i == 4
-            fee = self.fee_estimates.get(2)
-            if fee is not None:
-                fee += fee/2
-        if fee is not None:
-            fee = min(5*MAX_FEE_RATE, fee)
-        return fee
+        return self.transaction_fee
 
     def reverse_dynfee(self, fee_per_kb):
-        import operator
-        dist = map(lambda x: (x[0], abs(x[1] - fee_per_kb)), self.fee_estimates.items())
-        min_target, min_value = min(dist, key=operator.itemgetter(1))
-        if fee_per_kb < self.fee_estimates.get(25)/2:
-            min_target = -1
-        return min_target
+        return self.transaction_fee
 
     def has_fee_estimates(self):
-        return len(self.fee_estimates)==4
+        return True
 
     def is_dynfee(self):
-        return self.get('dynamic_fees') and self.has_fee_estimates()
+        return False
 
     def fee_per_kb(self):
-        dyn = self.is_dynfee()
-        if dyn:
-            fee_rate = self.dynfee(self.get('fee_level', 2))
-        else:
-            fee_rate = self.get('fee_per_kb', self.max_fee_rate()/2)
-        return fee_rate
+        return self.transaction_fee
 
 def read_system_config(path=SYSTEM_CONFIG_PATH):
-    """Parse and return the system config settings in /etc/electrum.conf."""
+    """Parse and return the system config settings in /etc/electrumfair.conf."""
     result = {}
     if os.path.exists(path):
         try:
             import ConfigParser
         except ImportError:
-            print "cannot parse electrum.conf. please install ConfigParser"
+            print "cannot parse electrumfair.conf. please install ConfigParser"
             return
 
         p = ConfigParser.ConfigParser()
@@ -253,7 +233,7 @@ def read_system_config(path=SYSTEM_CONFIG_PATH):
     return result
 
 def read_user_config(path):
-    """Parse and store the user config settings in electrum.conf into user_config[]."""
+    """Parse and store the user config settings in electrumfair.conf into user_config[]."""
     if not path:
         return {}
     config_path = os.path.join(path, "config")

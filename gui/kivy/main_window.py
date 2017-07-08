@@ -32,10 +32,10 @@ from kivy.lang import Builder
 
 # lazy imports for factory so that widgets can be used in kv
 Factory.register('InstallWizard',
-                 module='electrum_gui.kivy.uix.dialogs.installwizard')
-Factory.register('InfoBubble', module='electrum_gui.kivy.uix.dialogs')
-Factory.register('OutputList', module='electrum_gui.kivy.uix.dialogs')
-Factory.register('OutputItem', module='electrum_gui.kivy.uix.dialogs')
+                 module='electrumfair_gui.kivy.uix.dialogs.installwizard')
+Factory.register('InfoBubble', module='electrumfair_gui.kivy.uix.dialogs')
+Factory.register('OutputList', module='electrumfair_gui.kivy.uix.dialogs')
+Factory.register('OutputItem', module='electrumfair_gui.kivy.uix.dialogs')
 
 
 #from kivy.core.window import Window
@@ -56,7 +56,7 @@ from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.label import Label
 from kivy.core.clipboard import Clipboard
 
-Factory.register('TabbedCarousel', module='electrum_gui.kivy.uix.screens')
+Factory.register('TabbedCarousel', module='electrumfair_gui.kivy.uix.screens')
 
 # Register fonts without this you won't be able to use bold/italic...
 # inside markup.
@@ -507,9 +507,9 @@ class ElectrumWindow(App):
 
         #setup lazy imports for mainscreen
         Factory.register('AnimatedPopup',
-                         module='electrum_gui.kivy.uix.dialogs')
+                         module='electrumfair_gui.kivy.uix.dialogs')
         Factory.register('QRCodeWidget',
-                         module='electrum_gui.kivy.uix.qrcodewidget')
+                         module='electrumfair_gui.kivy.uix.qrcodewidget')
 
         # preload widgets. Remove this if you want to load the widgets on demand
         #Cache.append('electrum_widgets', 'AnimatedPopup', Factory.AnimatedPopup())

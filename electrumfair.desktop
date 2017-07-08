@@ -1,17 +1,17 @@
-# If you want electrum to appear in a linux app launcher ("start menu"), install this by doing:
-# sudo desktop-file-install electrum.desktop
+# If you want electrumfair to appear in a linux app launcher ("start menu"), install this by doing:
+# sudo desktop-file-install electrumfair.desktop
 
 [Desktop Entry]
-Comment=Lightweight Bitcoin Client
-Exec=electrum %u
-GenericName[en_US]=Electrum
-GenericName=Electrum
+Comment=Lightweight FairCoin Client
+Exec=electrumfair %u
+GenericName[en_US]=ElectrumFair
+GenericName=ElectrumFair
 Icon=electrum
-Name[en_US]=Electrum Bitcoin Wallet
-Name=Electrum Bitcoin Wallet
+Name[en_US]=Electrum FairCoin Wallet
+Name=Electrum FairCoin Wallet
 Categories=Network;
 StartupNotify=false
 Terminal=false
 Type=Application
-MimeType=x-scheme-handler/bitcoin;
+MimeType=x-scheme-handler/faircoin;
 
